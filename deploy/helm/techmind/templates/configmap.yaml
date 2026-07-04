@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "techmind.fullname" . }}-config
+  labels:
+    {{- include "techmind.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    app:
+      name: techmind
+      mode: {{ .Values.server.env | select . | fromYaml | default "prod" }}
+    server:
+      addr: ":8080"
+    log:
+      level: info
+      filename: logs/techmind.log
+      maxSize: 64
+      maxAge: 30
+      maxBackups: 10
+    mysql:
+      {{- if .Values.externalMySQL.enabled }}
+      dsn: "{{ .Values.externalMySQL.user }}:{{ .Values.externalMySQL.password }}@tcp({{ .Values.externalMySQL.host }}:{{ .Values.externalMySQL.port }})/{{ .Values.externalMySQL.database }}?parseTime=true&charset=utf8mb4&loc=Local"
+      {{- else }}
+      dsn: "techmind:techmind@tcp(techmind-mysql:3306)/techmind?parseTime=true&charset=utf8mb4&loc=Local"
+      {{- end }}
+      maxOpen: 20
+      maxIdle: 10
+      maxLifetime: 300
+    redis:
+      {{- if .Values.externalRedis.enabled }}
+      addr: "{{ .Values.externalRedis.host }}:{{ .Values.externalRedis.port }}"
+      password: "{{ .Values.externalRedis.password }}"
+      db: {{ .Values.externalRedis.db }}
+      {{- else }}
+      addr: "techmind-redis:6379"
+      password: ""
+      db: 0
+      {{- end }}
+    milvus:
+      {{- if .Values.externalMilvus.enabled }}
+      addr: "{{ .Values.externalMilvus.host }}:{{ .Values.externalMilvus.port }}"
+      {{- else }}
+      addr: "techmind-milvus:19530"
+      {{- end }}
+      collectionName: "techmind_articles"
+      dim: 1536
+    jwt:
+      secret: "change-me-in-production"
+      accessExpireMin: 60
+      refreshExpireH: 168
+    ai:
+      llmBaseURL: "https://api.deepseek.com/v1"
+      llmApiKey: "sk-xxx"
+      llmModel: "deepseek-chat"
+      embeddingApiKey: "your-ark-api-key"
+      embeddingModel: "ep-xxx"
+      timeoutSec: 30
+      maxConcurrency: 5

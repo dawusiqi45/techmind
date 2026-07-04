@@ -1,0 +1,167 @@
+# 默认 values 文件
+# 可通过 helm install techmind ./deploy/helm/techmind -f my-values.yaml 覆盖
+
+# ========== 全局配置 ==========
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: techmind
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# ========== Server 配置 ==========
+server:
+  enabled: true
+  replicaCount: 2
+
+  image:
+    repository: techmind
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+
+  ingress:
+    enabled: false
+    className: "nginx"
+    annotations: {}
+    hosts:
+      - host: techmind.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  env:
+    - name: TECHMIND_APP_MODE
+      value: "prod"
+    - name: TECHMIND_SERVER_ADDR
+      value: ":8080"
+    - name: TECHMIND_LOG_LEVEL
+      value: "info"
+
+  envFrom:
+    - configMapRef:
+        name: techmind-config
+    - secretRef:
+        name: techmind-secret
+
+# ========== Worker 配置 ==========
+worker:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: techmind
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  env:
+    - name: TECHMIND_APP_MODE
+      value: "prod"
+    - name: TECHMIND_LOG_LEVEL
+      value: "info"
+
+  envFrom:
+    - configMapRef:
+        name: techmind-config
+    - secretRef:
+        name: techmind-secret
+
+# ========== HPA 配置 ==========
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# ========== 服务监控 ==========
+serviceMonitor:
+  enabled: true
+  interval: 15s
+  path: /metrics
+
+# ========== PrometheusRule 告警规则 ==========
+prometheusRule:
+  enabled: true
+
+# ========== 数据库依赖（外部或内置） ==========
+mysql:
+  enabled: false  # 默认使用外部 MySQL，设为 true 可部署内置 MySQL
+  host: "techmind-mysql"
+  port: 3306
+  database: "techmind"
+  user: "techmind"
+  password: "techmind"
+
+redis:
+  enabled: false
+  host: "techmind-redis"
+  port: 6379
+  password: ""
+  db: 0
+
+milvus:
+  enabled: false
+  host: "techmind-milvus"
+  port: 19530
+
+# ========== 外部配置 ==========
+externalMySQL:
+  enabled: true
+  host: ""
+  port: 3306
+  database: "techmind"
+  user: ""
+  password: ""
+
+externalRedis:
+  enabled: true
+  host: ""
+  port: 6379
+  password: ""
+  db: 0
+
+externalMilvus:
+  enabled: true
+  host: ""
+  port: 19530

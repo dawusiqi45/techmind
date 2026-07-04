@@ -1,0 +1,169 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: techmind-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: techmind
+      MYSQL_USER: techmind
+      MYSQL_PASSWORD: techmind
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../../scripts/sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "techmind", "--password=techmind"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks:
+      - techmind-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: techmind-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks:
+      - techmind-net
+
+  # Milvus Standalone (简化版，生产建议 etcd + minio + milvus)
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: techmind-etcd
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379
+    networks:
+      - techmind-net
+
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: techmind-minio
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - minio_data:/minio_data
+    command: minio server /minio_data
+    networks:
+      - techmind-net
+
+  milvus-standalone:
+    image: milvusdb/milvus:v2.4.5
+    container_name: techmind-milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    depends_on:
+      - etcd
+      - minio
+    ports:
+      - "19530:19530"
+    networks:
+      - techmind-net
+
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: techmind-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=15d'
+    networks:
+      - techmind-net
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: techmind-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ../prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - techmind-net
+
+  # 注意：需要先构建镜像，或配置 build 上下文
+  techmind-server:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+      target: server
+    container_name: techmind-server
+    environment:
+      - TECHMIND_SERVER_ADDR=:8080
+      - TECHMIND_MYSQL_DSN=techmind:techmind@tcp(mysql:3306)/techmind?parseTime=true&charset=utf8mb4&loc=Local
+      - TECHMIND_REDIS_ADDR=redis:6379
+      - TECHMIND_MILVUS_ADDR=milvus-standalone:19530
+      - TECHMIND_LOG_LEVEL=info
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - techmind-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  techmind-worker:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+      target: worker
+    container_name: techmind-worker
+    environment:
+      - TECHMIND_MYSQL_DSN=techmind:techmind@tcp(mysql:3306)/techmind?parseTime=true&charset=utf8mb4&loc=Local
+      - TECHMIND_REDIS_ADDR=redis:6379
+      - TECHMIND_MILVUS_ADDR=milvus-standalone:19530
+      - TECHMIND_LOG_LEVEL=info
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - techmind-net
+
+volumes:
+  mysql_data:
+  redis_data:
+  etcd_data:
+  minio_data:
+  milvus_data:
+  prometheus_data:
+
+networks:
+  techmind-net:
+    driver: bridge

@@ -1,0 +1,47 @@
+app:
+  name: techmind
+  mode: local   # local / dev / prod
+
+server:
+  addr: ":8080"
+
+log:
+  level: debug
+  filename: logs/techmind.log
+  maxSize: 64
+  maxAge: 30
+  maxBackups: 10
+
+mysql:
+  dsn: "techmind:your-password@tcp(127.0.0.1:3306)/techmind?parseTime=true&charset=utf8mb4&loc=Local"
+  maxOpen: 20
+  maxIdle: 10
+  maxLifetime: 300
+
+redis:
+  addr: "127.0.0.1:6379"
+  password: ""
+  db: 0
+
+jwt:
+  secret: "change-me-in-production"
+  accessExpireMin: 60
+  refreshExpireH: 168
+
+milvus:
+  addr: "localhost:19530"
+  collectionName: "techmind_articles"
+  dim: 1536
+
+ai:
+  llmBaseURL: "https://api.deepseek.com/v1"
+  llmApiKey: "sk-your-deepseek-key"
+  llmModel: "deepseek-chat"
+  embeddingApiKey: "your-ark-api-key"
+  embeddingModel: "ep-your-endpoint-id"
+  timeoutSec: 30
+  maxConcurrency: 5
+
+rateLimit:
+  enabled: true
+  requestsPerMin: 60

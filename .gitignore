@@ -1,0 +1,28 @@
+# Build outputs
+bin/
+dist/
+*.exe
+*.test
+
+# Logs
+logs/
+
+# Local config (contains secrets, use config.example.yaml as template)
+config/config.yaml
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# CodeGraph local index
+.codegraph/
+
+# Internal dev docs (personal progress tracking)
+docs/

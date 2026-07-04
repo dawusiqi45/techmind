@@ -1,0 +1,15 @@
+apiVersion: v2
+name: techmind
+description: A Helm chart for TechMind - Tech Forum & Cloud Native Observability Platform
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - techmind
+  - forum
+  - observability
+  - sre
+home: https://github.com/techmind/techmind
+maintainers:
+  - name: TechMind Team
+    email: dev@techmind.io
