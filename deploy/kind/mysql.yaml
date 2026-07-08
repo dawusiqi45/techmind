@@ -41,7 +41,7 @@ spec:
               readOnly: true
           readinessProbe:
             exec:
-              command: ["sh", "-c", "mysqladmin ping -h localhost -u techmind --password=techmind"]
+              command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -u techmind --password=techmind"]
             initialDelaySeconds: 10
             periodSeconds: 5
       volumes:
