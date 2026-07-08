@@ -24,7 +24,7 @@ spec:
             service: techmind-server
           annotations:
             summary: "API 5xx 错误率超过 5%"
-            description: "TechMind API 错误率为 {{ $value | humanizePercentage }}，持续5分钟"
+            description: "TechMind API 错误率为 {{`{{ $value | humanizePercentage }}`}}，持续5分钟"
 
         - alert: APILatencyHigh
           expr: |
@@ -37,7 +37,7 @@ spec:
             service: techmind-server
           annotations:
             summary: "API P95 延迟超过 1s"
-            description: "TechMind API P95 延迟为 {{ $value }}s，持续5分钟"
+            description: "TechMind API P95 延迟为 {{`{{ $value }}`}}s，持续5分钟"
 
         - alert: SlowRequestSpike
           expr: rate(slow_requests_total[5m]) > 0.5
@@ -47,7 +47,7 @@ spec:
             service: techmind-server
           annotations:
             summary: "慢请求数量突增"
-            description: "慢请求速率为 {{ $value }}/s，持续3分钟"
+            description: "慢请求速率为 {{`{{ $value }}`}}/s，持续3分钟"
 
     - name: techmind-cache
       interval: 30s
@@ -69,7 +69,7 @@ spec:
             service: techmind-server
           annotations:
             summary: "缓存命中率低于 60%"
-            description: "缓存命中率为 {{ $value | humanizePercentage }}，持续5分钟"
+            description: "缓存命中率为 {{`{{ $value | humanizePercentage }}`}}，持续5分钟"
 
     - name: techmind-redis-stream
       interval: 30s
@@ -82,7 +82,7 @@ spec:
             service: techmind-worker
           annotations:
             summary: "Redis Stream 队列积压超过 100"
-            description: "AI/诊断任务 pending 数量为 {{ $value }}，持续3分钟"
+            description: "AI/诊断任务 pending 数量为 {{`{{ $value }}`}}，持续3分钟"
 
         - alert: WorkerConsumeLagHigh
           expr: |
@@ -95,7 +95,7 @@ spec:
             service: techmind-worker
           annotations:
             summary: "Worker 消费延迟超过 60s"
-            description: "Worker 消费 P95 延迟为 {{ $value }}s，持续3分钟"
+            description: "Worker 消费 P95 延迟为 {{`{{ $value }}`}}s，持续3分钟"
 
     - name: techmind-ai
       interval: 30s
@@ -113,7 +113,7 @@ spec:
             service: techmind-server
           annotations:
             summary: "AI 调用失败率超过 10%"
-            description: "AI 调用失败率为 {{ $value | humanizePercentage }}，持续5分钟"
+            description: "AI 调用失败率为 {{`{{ $value | humanizePercentage }}`}}，持续5分钟"
 
         - alert: AICallLatencyHigh
           expr: |
@@ -126,7 +126,7 @@ spec:
             service: techmind-server
           annotations:
             summary: "AI 调用延迟 P95 超过 10s"
-            description: "AI 调用 P95 延迟为 {{ $value }}s，持续3分钟"
+            description: "AI 调用 P95 延迟为 {{`{{ $value }}`}}s，持续3分钟"
 
     - name: techmind-milvus
       interval: 30s
@@ -142,7 +142,7 @@ spec:
             service: techmind-server
           annotations:
             summary: "Milvus 搜索延迟 P95 超过 500ms"
-            description: "Milvus 搜索 P95 延迟为 {{ $value }}s，持续5分钟"
+            description: "Milvus 搜索 P95 延迟为 {{`{{ $value }}`}}s，持续5分钟"
 
         - alert: MilvusSearchErrorHigh
           expr: rate(milvus_search_errors_total[5m]) > 0.1
@@ -152,7 +152,7 @@ spec:
             service: techmind-server
           annotations:
             summary: "Milvus 搜索错误率突增"
-            description: "Milvus 搜索错误速率为 {{ $value }}/s，持续3分钟"
+            description: "Milvus 搜索错误速率为 {{`{{ $value }}`}}/s，持续3分钟"
 
     - name: techmind-ops
       interval: 30s
@@ -168,5 +168,5 @@ spec:
             service: techmind-worker
           annotations:
             summary: "诊断报告生成耗时 P95 超过 120s"
-            description: "SRE Agent 诊断报告生成 P95 耗时为 {{ $value }}s，持续5分钟"
+            description: "SRE Agent 诊断报告生成 P95 耗时为 {{`{{ $value }}`}}s，持续5分钟"
 {{- end }}
