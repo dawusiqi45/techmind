@@ -1,0 +1,6 @@
+.container { max-width: 900px; }
+.header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.time { color: #8b949e; font-size: 13px; }
+.block { background: #161b22; border: 1px solid #30363d; margin-bottom: 12px; }
+.block :global(.ant-card-head) { border-bottom: 1px solid #30363d; color: #e6edf3; }
+.block :global(.ant-card-body) { color: #c9d1d9; }

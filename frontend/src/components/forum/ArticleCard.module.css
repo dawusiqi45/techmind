@@ -1,0 +1,9 @@
+.card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 12px; cursor: pointer; border: 1px solid #e5e7eb; transition: box-shadow 0.2s; }
+.card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.title { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #1f2328; }
+.summary { color: #57606a; font-size: 14px; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; color: #57606a; }
+.author { font-weight: 500; color: #1677ff; }
+.tags { display: flex; gap: 4px; }
+.stats { display: flex; gap: 12px; margin-left: auto; }
+.stats span { display: flex; align-items: center; gap: 4px; }

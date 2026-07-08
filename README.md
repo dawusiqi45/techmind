@@ -43,17 +43,38 @@ TechMind/
 │   ├── middleware/             Gin 中间件
 │   ├── model/                  数据模型
 │   └── pkg/                    通用包（jwt/snowflake/response/logger/settings）
+├── frontend/                   React 18 + Vite + TypeScript 前端
+│   ├── src/
+│   │   ├── api/                Axios API 模块（9个）
+│   │   ├── store/              Zustand 状态管理（auth/theme）
+│   │   ├── layouts/            ForumLayout（浅色）/ AdminLayout（深色）
+│   │   ├── pages/forum/        论坛页（Home/Login/Search/ArticleDetail/Editor/UserProfile）
+│   │   ├── pages/admin/        管理后台页（Monitor/Alert/Ops/Runbook/Deployment 等）
+│   │   ├── components/         公共组件（ArticleCard/StatCard/AlertBadge）
+│   │   └── utils/              token 管理 + 时间格式化
+│   ├── nginx.conf              /api/ 反代 + SPA fallback
+│   └── Dockerfile              多阶段构建（Node→Nginx）
 ├── config/
 │   ├── config.yaml             本地开发配置
 │   └── config.example.yaml     配置样例
 ├── deploy/
-│   ├── docker/docker-compose.yml   Docker Compose 编排
-│   ├── helm/techmind/              Helm Chart
+│   ├── docker/docker-compose.yml   Docker Compose 全栈编排
+│   ├── helm/techmind/              Helm Chart（server/worker/frontend）
+│   ├── kind/                       kind 集群部署
+│   │   ├── cluster.yaml            集群定义
+│   │   ├── deploy.sh               一键部署脚本（8步）
+│   │   ├── mysql.yaml / redis.yaml 基础设施
+│   │   ├── prometheus.yaml / alertmanager.yaml 监控
+│   │   ├── metrics-server.yaml     HPA 依赖
+│   │   └── values-kind.yaml        Helm 专用配置
 │   └── prometheus/                 Prometheus + Alertmanager 配置
 ├── scripts/
-│   ├── sql/init.sql            数据库初始化
+│   ├── sql/init.sql            数据库初始化（15张表）
 │   └── seed_data.go            演示数据种子
-└── docs/                       项目文档
+├── docs/                       项目文档
+│   ├── 项目进度.md             完整开发日志（阶段1-13）
+│   └── 项目范围.md             模块边界说明
+└── Dockerfile                  后端多阶段构建（server/worker 两个 target）
 ```
 
 ## 快速开始
@@ -205,4 +226,8 @@ go build ./...
 
 ## 开发进度
 
-详见 [docs/项目进度.md](docs/项目进度.md)。
+详见 [docs/项目进度.md](docs/项目进度.md)（共 13 个阶段，全部完成）。
+
+- **后端**（阶段1-10）：Go/Gin API Server + Worker，论坛业务 + AI + 可观测 + 告警 + SRE Agent。
+- **前端**（阶段11-12）：React 18 + Vite + TypeScript，论坛浅色主题 + 管理后台深色主题，前后端接口已对齐。
+- **部署**（阶段13）：Docker Compose + Helm Chart + kind 集群一键部署脚本。

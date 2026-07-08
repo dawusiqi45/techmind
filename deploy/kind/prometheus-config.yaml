@@ -1,0 +1,54 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: techmind
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        monitor: 'techmind'
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - 'alertmanager:9093'
+    rule_files:
+      - 'techmind-rules.yml'
+    scrape_configs:
+      - job_name: 'techmind-server'
+        static_configs:
+          - targets: ['techmind-server:8080']
+        metrics_path: '/metrics'
+        scrape_interval: 5s
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+  techmind-rules.yml: |
+    groups:
+      - name: techmind
+        rules:
+          - alert: SearchLatencyHigh
+            expr: http_request_duration_seconds_sum{path="/api/v1/search"} / http_request_duration_seconds_count{path="/api/v1/search"} > 1
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "搜索接口延迟过高"
+          - alert: RedisStreamBacklogHigh
+            expr: redis_stream_pending_total > 50
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Redis Stream 积压过多"
+          - alert: AICallFailureHigh
+            expr: rate(ai_call_errors_total[5m]) > 0.5
+            for: 3m
+            labels:
+              severity: critical
+            annotations:
+              summary: "AI 调用失败率过高"

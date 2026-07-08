@@ -1,0 +1,63 @@
+# kind 集群专用 values
+# 用法: helm install techmind ./deploy/helm/techmind -n techmind -f deploy/kind/values-kind.yaml
+
+server:
+  replicaCount: 1
+  image:
+    repository: techmind-server
+    tag: latest
+    pullPolicy: Never
+
+worker:
+  replicaCount: 1
+  image:
+    repository: techmind-worker
+    tag: latest
+    pullPolicy: Never
+
+frontend:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: techmind-frontend
+    tag: latest
+    pullPolicy: Never
+  service:
+    type: NodePort
+    port: 80
+    nodePort: 30000
+
+hpa:
+  enabled: false
+
+mysql:
+  enabled: true
+  host: "mysql"
+  port: 3306
+  database: "techmind"
+  user: "techmind"
+  password: "techmind"
+
+redis:
+  enabled: true
+  host: "redis"
+  port: 6379
+  password: ""
+
+milvus:
+  enabled: false
+
+externalMySQL:
+  enabled: false
+
+externalRedis:
+  enabled: false
+
+externalMilvus:
+  enabled: false
+
+serviceMonitor:
+  enabled: false
+
+prometheusRule:
+  enabled: false

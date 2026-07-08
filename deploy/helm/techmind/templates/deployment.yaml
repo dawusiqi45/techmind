@@ -20,6 +20,7 @@ spec:
         - name: server
           image: "{{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}"
           imagePullPolicy: {{ .Values.server.image.pullPolicy }}
+          args: ["-config", "/app/config/config.yaml"]
           ports:
             - name: http
               containerPort: 8080
@@ -32,8 +33,15 @@ spec:
             {{- toYaml .Values.server.resources | nindent 12 }}
           env:
             {{- toYaml .Values.server.env | nindent 12 }}
-          envFrom:
-            {{- toYaml .Values.server.envFrom | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config/config.yaml
+              subPath: config.yaml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "techmind.fullname" . }}-config
 ---
 {{/* Worker Deployment */}}
 apiVersion: apps/v1
@@ -57,9 +65,17 @@ spec:
         - name: worker
           image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag }}"
           imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
+          args: ["-config", "/app/config/config.yaml"]
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
           env:
             {{- toYaml .Values.worker.env | nindent 12 }}
-          envFrom:
-            {{- toYaml .Values.worker.envFrom | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config/config.yaml
+              subPath: config.yaml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "techmind.fullname" . }}-config

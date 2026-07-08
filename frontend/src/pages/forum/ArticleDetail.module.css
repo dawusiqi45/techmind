@@ -1,0 +1,16 @@
+.container { max-width: 860px; margin: 0 auto; }
+.article { background: #fff; border-radius: 8px; padding: 40px; border: 1px solid #e5e7eb; }
+.title { font-size: 28px; font-weight: 700; margin-bottom: 16px; }
+.meta { display: flex; align-items: center; gap: 10px; color: #57606a; font-size: 13px; margin-bottom: 24px; flex-wrap: wrap; }
+.content { line-height: 1.8; font-size: 16px; }
+.content :global(h1), .content :global(h2), .content :global(h3) { margin: 24px 0 12px; }
+.content :global(p) { margin-bottom: 16px; }
+.content :global(pre) { margin: 16px 0; border-radius: 6px; overflow: auto; }
+.content :global(blockquote) { border-left: 4px solid #1677ff; padding: 8px 16px; margin: 16px 0; background: #f0f7ff; border-radius: 0 6px 6px 0; }
+.actions { display: flex; gap: 12px; margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb; }
+.comments { background: #fff; border-radius: 8px; padding: 32px; margin-top: 16px; border: 1px solid #e5e7eb; }
+.comments h3 { font-size: 18px; margin-bottom: 20px; }
+.commentInput { margin-bottom: 24px; }
+.comment { display: flex; gap: 12px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #f0f0f0; }
+.commentAuthor { font-weight: 600; margin-right: 8px; }
+.commentTime { color: #57606a; font-size: 12px; }

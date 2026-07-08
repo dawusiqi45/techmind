@@ -1,0 +1,10 @@
+.siderLogo {
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #177ddc;
+  border-bottom: 1px solid #30363d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

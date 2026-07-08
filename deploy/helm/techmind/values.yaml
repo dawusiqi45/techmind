@@ -62,19 +62,7 @@ server:
     timeoutSeconds: 5
     failureThreshold: 3
 
-  env:
-    - name: TECHMIND_APP_MODE
-      value: "prod"
-    - name: TECHMIND_SERVER_ADDR
-      value: ":8080"
-    - name: TECHMIND_LOG_LEVEL
-      value: "info"
-
-  envFrom:
-    - configMapRef:
-        name: techmind-config
-    - secretRef:
-        name: techmind-secret
+  env: []
 
 # ========== Worker 配置 ==========
 worker:
@@ -94,17 +82,31 @@ worker:
       cpu: 100m
       memory: 128Mi
 
-  env:
-    - name: TECHMIND_APP_MODE
-      value: "prod"
-    - name: TECHMIND_LOG_LEVEL
-      value: "info"
+  env: []
 
-  envFrom:
-    - configMapRef:
-        name: techmind-config
-    - secretRef:
-        name: techmind-secret
+# ========== Frontend 配置 ==========
+frontend:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: techmind-frontend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: NodePort
+    port: 80
+    targetPort: 80
+    nodePort: 30000
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
 
 # ========== HPA 配置 ==========
 hpa:
@@ -124,10 +126,10 @@ serviceMonitor:
 prometheusRule:
   enabled: true
 
-# ========== 数据库依赖（外部或内置） ==========
+# ========== 数据库依赖（集群内部或外部） ==========
 mysql:
-  enabled: false  # 默认使用外部 MySQL，设为 true 可部署内置 MySQL
-  host: "techmind-mysql"
+  enabled: false
+  host: "mysql"
   port: 3306
   database: "techmind"
   user: "techmind"
@@ -135,7 +137,7 @@ mysql:
 
 redis:
   enabled: false
-  host: "techmind-redis"
+  host: "redis"
   port: 6379
   password: ""
   db: 0

@@ -1,0 +1,14 @@
+:root {
+  --color-bg: #ffffff;
+  --color-text: #1f2328;
+  --color-primary: #1677ff;
+  --color-border: #e5e7eb;
+  --color-card: #f6f8fa;
+}
+[data-theme='admin'] {
+  --color-bg: #0f1117;
+  --color-text: #e6edf3;
+  --color-primary: #177ddc;
+  --color-border: #30363d;
+  --color-card: #161b22;
+}

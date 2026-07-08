@@ -8,7 +8,7 @@ data:
   config.yaml: |
     app:
       name: techmind
-      mode: {{ .Values.server.env | select . | fromYaml | default "prod" }}
+      mode: prod
     server:
       addr: ":8080"
     log:
@@ -18,29 +18,31 @@ data:
       maxAge: 30
       maxBackups: 10
     mysql:
-      {{- if .Values.externalMySQL.enabled }}
+      {{- if .Values.mysql.enabled }}
+      dsn: "{{ .Values.mysql.user }}:{{ .Values.mysql.password }}@tcp({{ .Values.mysql.host }}:{{ .Values.mysql.port }})/{{ .Values.mysql.database }}?parseTime=true&charset=utf8mb4&loc=Local"
+      {{- else if .Values.externalMySQL.enabled }}
       dsn: "{{ .Values.externalMySQL.user }}:{{ .Values.externalMySQL.password }}@tcp({{ .Values.externalMySQL.host }}:{{ .Values.externalMySQL.port }})/{{ .Values.externalMySQL.database }}?parseTime=true&charset=utf8mb4&loc=Local"
-      {{- else }}
-      dsn: "techmind:techmind@tcp(techmind-mysql:3306)/techmind?parseTime=true&charset=utf8mb4&loc=Local"
       {{- end }}
       maxOpen: 20
       maxIdle: 10
       maxLifetime: 300
     redis:
-      {{- if .Values.externalRedis.enabled }}
+      {{- if .Values.redis.enabled }}
+      addr: "{{ .Values.redis.host }}:{{ .Values.redis.port }}"
+      password: "{{ .Values.redis.password }}"
+      db: {{ .Values.redis.db }}
+      {{- else if .Values.externalRedis.enabled }}
       addr: "{{ .Values.externalRedis.host }}:{{ .Values.externalRedis.port }}"
       password: "{{ .Values.externalRedis.password }}"
       db: {{ .Values.externalRedis.db }}
-      {{- else }}
-      addr: "techmind-redis:6379"
-      password: ""
-      db: 0
       {{- end }}
     milvus:
-      {{- if .Values.externalMilvus.enabled }}
+      {{- if .Values.milvus.enabled }}
+      addr: "{{ .Values.milvus.host }}:{{ .Values.milvus.port }}"
+      {{- else if .Values.externalMilvus.enabled }}
       addr: "{{ .Values.externalMilvus.host }}:{{ .Values.externalMilvus.port }}"
       {{- else }}
-      addr: "techmind-milvus:19530"
+      addr: ""
       {{- end }}
       collectionName: "techmind_articles"
       dim: 1536
@@ -56,3 +58,6 @@ data:
       embeddingModel: "ep-xxx"
       timeoutSec: 30
       maxConcurrency: 5
+    rateLimit:
+      enabled: true
+      requestsPerMin: 60

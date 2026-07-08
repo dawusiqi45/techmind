@@ -50,3 +50,10 @@ app.kubernetes.io/name: {{ include "techmind.fullname" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/component: worker
 {{- end }}
+
+{{/* Frontend 标签选择器 */}}
+{{- define "techmind.frontend.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "techmind.fullname" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: frontend
+{{- end }}
