@@ -20,6 +20,7 @@ spec:
         - name: server
           image: "{{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}"
           imagePullPolicy: {{ .Values.server.image.pullPolicy }}
+          command: ["/app/techmind-server"]
           args: ["-config", "/app/config/config.yaml"]
           ports:
             - name: http
@@ -65,6 +66,7 @@ spec:
         - name: worker
           image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag }}"
           imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
+          command: ["/app/techmind-worker"]
           args: ["-config", "/app/config/config.yaml"]
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
