@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Tabs, Spin } from 'antd'
-import { UserOutlined, CalendarOutlined, MailOutlined } from '@ant-design/icons'
+import { CalendarOutlined, MailOutlined } from '@ant-design/icons'
 import { authApi } from '@/api/auth'
 import { articleApi } from '@/api/article'
 import { useAuthStore } from '@/store/auth'

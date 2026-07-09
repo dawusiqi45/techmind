@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Input, Modal, Spin } from 'antd'
+import { Input, Modal, Spin } from 'antd'
 import { LikeOutlined, StarOutlined, LikeFilled, StarFilled, ArrowLeftOutlined } from '@ant-design/icons'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
