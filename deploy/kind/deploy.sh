@@ -1,10 +1,24 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CLUSTER_NAME="techmind"
 NAMESPACE="techmind"
+
+preload_registry_k8s_image() {
+  local image="$1"
+  local mirror_image="m.daocloud.io/${image}"
+
+  if ! docker image inspect "${image}" >/dev/null 2>&1; then
+    echo "  拉取 ${mirror_image}"
+    docker pull "${mirror_image}"
+    docker tag "${mirror_image}" "${image}"
+  fi
+
+  echo "  注入 ${image} 到 kind 集群"
+  kind load docker-image "${image}" --name "${CLUSTER_NAME}"
+}
 
 echo "=========================================="
 echo "  TechMind Kind 集群一键部署"
@@ -28,22 +42,34 @@ fi
 echo ""
 echo "[2/8] 安装集群中间件 (Ingress Controller + Metrics Server)..."
 
-# Nginx Ingress Controller
-if kubectl get ns ingress-nginx 2>/dev/null | grep -q "ingress-nginx"; then
-  echo "  Ingress Controller 已安装，跳过"
-else
-  kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-  echo "  等待 Ingress Controller 就绪..."
-  kubectl wait --namespace ingress-nginx \
-    --for=condition=ready pod \
-    --selector=app.kubernetes.io/component=controller \
-    --timeout=120s 2>/dev/null || true
+# registry.k8s.io 在部分网络环境不可用，先从可用镜像源拉取并注入 kind 节点。
+preload_registry_k8s_image "registry.k8s.io/ingress-nginx/controller:v1.15.1"
+preload_registry_k8s_image "registry.k8s.io/ingress-nginx/kube-webhook-certgen:v1.6.9"
+preload_registry_k8s_image "registry.k8s.io/metrics-server/metrics-server:v0.7.1"
+
+# Nginx Ingress Controller. Admission jobs are recreated so failed/old jobs do not block re-runs.
+if kubectl get ns ingress-nginx >/dev/null 2>&1; then
+  kubectl delete job ingress-nginx-admission-create ingress-nginx-admission-patch \
+    -n ingress-nginx --ignore-not-found=true
 fi
+kubectl apply -f "${SCRIPT_DIR}/ingress-nginx-kind.yaml"
+echo "  等待 Ingress Admission Job 完成..."
+kubectl wait --namespace ingress-nginx \
+  --for=condition=complete job/ingress-nginx-admission-create \
+  --timeout=120s
+kubectl wait --namespace ingress-nginx \
+  --for=condition=complete job/ingress-nginx-admission-patch \
+  --timeout=120s
+echo "  等待 Ingress Controller 就绪..."
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=180s
 
 # Metrics Server
 kubectl apply -f "${SCRIPT_DIR}/metrics-server.yaml"
 echo "  等待 Metrics Server 就绪..."
-kubectl rollout status deployment/metrics-server -n kube-system --timeout=60s 2>/dev/null || true
+kubectl rollout status deployment/metrics-server -n kube-system --timeout=120s
 
 # ============================================
 # 3. 构建后端镜像 (server + worker)
@@ -120,9 +146,9 @@ helm upgrade --install techmind ./deploy/helm/techmind \
 # ============================================
 echo ""
 echo "[8/8] 等待所有 Pod 就绪..."
-kubectl rollout status deployment/techmind-server -n ${NAMESPACE} --timeout=120s 2>/dev/null || true
-kubectl rollout status deployment/techmind-worker -n ${NAMESPACE} --timeout=120s 2>/dev/null || true
-kubectl rollout status deployment/techmind-frontend -n ${NAMESPACE} --timeout=120s 2>/dev/null || true
+kubectl rollout status deployment/techmind-server -n ${NAMESPACE} --timeout=120s
+kubectl rollout status deployment/techmind-worker -n ${NAMESPACE} --timeout=120s
+kubectl rollout status deployment/techmind-frontend -n ${NAMESPACE} --timeout=120s
 
 echo ""
 echo "=========================================="

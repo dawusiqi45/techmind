@@ -143,6 +143,36 @@ helm install techmind . -n techmind --create-namespace \
   --set externalMilvus.host=your-milvus-host
 ```
 
+### kind 本地完整部署验证
+
+`deploy/kind/deploy.sh` 会创建名为 `techmind` 的 kind 集群，预加载 registry.k8s.io 插件镜像，安装固定版本的 ingress-nginx、metrics-server、MySQL、Redis、Prometheus、Alertmanager，并通过 Helm 部署 TechMind。
+
+```bash
+cd deploy/kind
+bash deploy.sh
+```
+
+如果之前的 kind 集群已有半安装失败的插件，建议先重建本地验证集群：
+
+```bash
+kind delete cluster --name techmind
+bash deploy.sh
+```
+
+部署完成后验证：
+
+```bash
+kubectl get pods -A
+kubectl top nodes
+```
+
+访问地址：
+
+```text
+前端:       http://<虚拟机IP>:30000
+Prometheus: http://<虚拟机IP>:30909
+```
+
 ## API 概览
 
 ### 论坛业务
