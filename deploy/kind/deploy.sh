@@ -6,15 +6,35 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CLUSTER_NAME="techmind"
 NAMESPACE="techmind"
 
+pull_image_with_fallback() {
+  local target_image="$1"
+  shift
+
+  if docker image inspect "${target_image}" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  for source_image in "$@"; do
+    echo "  拉取 ${source_image}"
+    if timeout 180 docker pull "${source_image}"; then
+      if [ "${source_image}" != "${target_image}" ]; then
+        docker tag "${source_image}" "${target_image}"
+      fi
+      return 0
+    fi
+    echo "  拉取 ${source_image} 失败，尝试下一个镜像源"
+  done
+
+  echo "  无法拉取 ${target_image}，请检查 Docker 网络或手动拉取该镜像" >&2
+  return 1
+}
+
 preload_registry_k8s_image() {
   local image="$1"
-  local mirror_image="m.daocloud.io/${image}"
 
-  if ! docker image inspect "${image}" >/dev/null 2>&1; then
-    echo "  拉取 ${mirror_image}"
-    docker pull "${mirror_image}"
-    docker tag "${mirror_image}" "${image}"
-  fi
+  pull_image_with_fallback "${image}" \
+    "m.daocloud.io/${image}" \
+    "${image}"
 
   echo "  注入 ${image} 到 kind 集群"
   kind load docker-image "${image}" --name "${CLUSTER_NAME}"
@@ -22,11 +42,28 @@ preload_registry_k8s_image() {
 
 preload_docker_image() {
   local image="$1"
+  local candidates=()
 
-  if ! docker image inspect "${image}" >/dev/null 2>&1; then
-    echo "  拉取 ${image}"
-    docker pull "${image}"
+  if [[ "${image}" == */* ]]; then
+    candidates=(
+      "docker.1ms.run/${image}"
+      "docker.m.daocloud.io/${image}"
+      "docker.xuanyuan.me/${image}"
+      "${image}"
+    )
+  else
+    candidates=(
+      "docker.1ms.run/library/${image}"
+      "docker.m.daocloud.io/library/${image}"
+      "docker.xuanyuan.me/library/${image}"
+      "docker.1ms.run/${image}"
+      "docker.m.daocloud.io/${image}"
+      "docker.xuanyuan.me/${image}"
+      "${image}"
+    )
   fi
+
+  pull_image_with_fallback "${image}" "${candidates[@]}"
 
   echo "  注入 ${image} 到 kind 集群"
   kind load docker-image "${image}" --name "${CLUSTER_NAME}"
