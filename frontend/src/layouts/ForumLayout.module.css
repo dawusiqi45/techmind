@@ -1,51 +1,162 @@
 .header {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
-  background: #fff;
   height: 56px;
-  border-bottom: 1px solid #f0f0f0;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  background: rgba(10, 10, 15, 0.7);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border-bottom: 1px solid transparent;
+  transition: border-color 200ms ease, background 200ms ease;
 }
 
-.headerInner {
+.scrolled {
+  background: rgba(10, 10, 15, 0.92);
+  border-bottom-color: var(--border);
+}
+
+.inner {
   max-width: 1200px;
   margin: 0 auto;
   height: 100%;
-  padding: 0 20px;
+  padding: 0 24px;
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
 .logo {
-  font-size: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
   font-weight: 700;
-  color: #1677ff;
+  color: var(--text-1);
   text-decoration: none;
   white-space: nowrap;
   flex-shrink: 0;
+  letter-spacing: -0.3px;
+  transition: opacity 150ms ease;
 }
 
 .logo:hover {
-  color: #0958d9;
+  opacity: 0.8;
+  color: var(--text-1);
 }
 
-.search {
+.logoIcon {
+  color: var(--accent);
+  font-size: 20px;
+}
+
+/* ── 搜索框 ── */
+.searchWrap {
   flex: 1;
-  display: flex;
-  justify-content: center;
+  max-width: 360px;
+  transition: max-width 250ms ease;
 }
 
+.searchExpanded {
+  max-width: 480px;
+}
+
+.searchInput {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  color: var(--text-1) !important;
+  height: 36px !important;
+  transition: border-color 150ms ease, box-shadow 150ms ease !important;
+}
+
+.searchInput:focus,
+.searchInput:hover {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-glow) !important;
+}
+
+/* ── 右侧操作区 ── */
 .actions {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
+.writeBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+  font-family: var(--sans);
+}
+
+.writeBtn:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+}
+
+.loginBtn {
+  padding: 6px 16px;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease, transform 100ms ease;
+  font-family: var(--sans);
+}
+
+.loginBtn:hover {
+  background: #818cf8;
+}
+
+.loginBtn:active {
+  transform: scale(0.97);
+}
+
+.avatarBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+  font-family: var(--sans);
+}
+
+.avatarBtn:hover {
+  border-color: var(--accent);
+  background: var(--surface-1);
+}
+
+.username {
+  font-size: 13px;
+  color: var(--text-2);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 主内容区 ── */
 .main {
-  max-width: 1200px;
-  margin: 24px auto;
-  padding: 0 20px;
+  padding-top: 72px;
+  min-height: 100vh;
 }

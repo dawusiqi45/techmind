@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function StatCard({ title, value, status = 'normal', suffix }: Props) {
-  const colorMap = { normal: '#52c41a', warning: '#faad14', error: '#ff4d4f' }
+  const colorMap = { normal: 'var(--green)', warning: 'var(--yellow)', error: 'var(--red)' }
   return (
     <div className={styles.card}>
       <div className={styles.title}>{title}</div>

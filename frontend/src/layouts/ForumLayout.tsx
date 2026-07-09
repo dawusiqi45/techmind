@@ -1,26 +1,29 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Outlet, useNavigate, Link } from 'react-router-dom'
-import { ConfigProvider, Input, Button, Avatar, Dropdown, theme } from 'antd'
+import { Input, Avatar, Dropdown } from 'antd'
 import type { MenuProps } from 'antd'
-import { UserOutlined } from '@ant-design/icons'
+import { SearchOutlined, EditOutlined, UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/store/auth'
-import { useThemeStore } from '@/store/theme'
 import styles from './ForumLayout.module.css'
 
 export default function ForumLayout() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
-  const setTheme = useThemeStore((s) => s.setTheme)
+  const [scrolled, setScrolled] = useState(false)
+  const [searchExpanded, setSearchExpanded] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setTheme('forum')
-    document.body.setAttribute('data-theme', 'forum')
-  }, [setTheme])
+    const handleScroll = () => setScrolled(window.scrollY > 8)
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   const handleSearch = (value: string) => {
     if (value.trim()) {
       navigate(`/search?q=${encodeURIComponent(value.trim())}`)
+      setSearchExpanded(false)
     }
   }
 
@@ -32,58 +35,86 @@ export default function ForumLayout() {
   const userMenuItems: MenuProps['items'] = [
     {
       key: 'profile',
+      icon: <SettingOutlined />,
       label: '个人主页',
       onClick: () => navigate('/user/profile'),
     },
+    { type: 'divider' },
     {
       key: 'logout',
+      icon: <LogoutOutlined />,
       label: '退出登录',
       onClick: handleLogout,
+      danger: true,
     },
   ]
 
   return (
-    <ConfigProvider
-      theme={{
-        algorithm: theme.defaultAlgorithm,
-        token: { colorPrimary: '#1677ff' },
-      }}
-    >
-      <div className={styles.header}>
-        <div className={styles.headerInner}>
-          <Link to="/" className={styles.logo}>TechMind</Link>
-          <div className={styles.search}>
-            <Input.Search
-              placeholder="搜索文章..."
-              onSearch={handleSearch}
-              style={{ maxWidth: 480 }}
+    <>
+      <header className={`${styles.header} ${scrolled ? styles.scrolled : ''}`}>
+        <div className={styles.inner}>
+          <Link to="/" className={styles.logo}>
+            <span className={styles.logoIcon}>⬡</span>
+            TechMind
+          </Link>
+
+          <div
+            ref={searchRef}
+            className={`${styles.searchWrap} ${searchExpanded ? styles.searchExpanded : ''}`}
+          >
+            <Input
+              prefix={<SearchOutlined style={{ color: 'var(--text-3)' }} />}
+              placeholder="搜索文章、话题..."
+              variant="filled"
+              onPressEnter={(e) => handleSearch((e.target as HTMLInputElement).value)}
+              onFocus={() => setSearchExpanded(true)}
+              onBlur={() => setSearchExpanded(false)}
+              className={styles.searchInput}
             />
           </div>
+
           <div className={styles.actions}>
             {user ? (
               <>
-                <Button type="primary" onClick={() => navigate('/articles/new')}>
-                  写文章
-                </Button>
-                <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-                  <Avatar
-                    src={user.avatar || undefined}
-                    icon={!user.avatar ? <UserOutlined /> : undefined}
-                    style={{ cursor: 'pointer', marginLeft: 8 }}
-                  />
+                <button
+                  className={styles.writeBtn}
+                  onClick={() => navigate('/articles/new')}
+                >
+                  <EditOutlined />
+                  <span>写文章</span>
+                </button>
+                <Dropdown
+                  menu={{ items: userMenuItems }}
+                  placement="bottomRight"
+                  trigger={['click']}
+                >
+                  <button className={styles.avatarBtn}>
+                    <Avatar
+                      src={user.avatar || undefined}
+                      icon={!user.avatar ? <UserOutlined /> : undefined}
+                      size={32}
+                      style={{ background: 'var(--accent)' }}
+                    />
+                    <span className={styles.username}>{user.username}</span>
+                  </button>
                 </Dropdown>
               </>
             ) : (
-              <Button type="primary" onClick={() => navigate('/login')}>
-                登录
-              </Button>
+              <button
+                className={styles.loginBtn}
+                onClick={() => navigate('/login')}
+              >
+                登录 / 注册
+              </button>
             )}
           </div>
         </div>
-      </div>
+      </header>
+
       <main className={styles.main}>
         <Outlet />
       </main>
-    </ConfigProvider>
+    </>
   )
 }
+

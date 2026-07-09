@@ -1,5 +1,75 @@
-.container { max-width: 860px; margin: 0 auto; }
-.keyword { color: #57606a; font-size: 14px; margin-bottom: 16px; }
-.aiSummary { background: linear-gradient(135deg, #e8f4ff, #f0f7ff); border: 1px solid #bae0ff; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
-.aiHeader { font-weight: 600; color: #1677ff; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-.relatedTags { margin-bottom: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.headerIcon {
+  color: var(--text-3);
+  font-size: 18px;
+}
+
+.keyword {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -0.3px;
+}
+
+.count {
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.spinWrap {
+  display: flex;
+  justify-content: center;
+  padding: 80px 0;
+}
+
+/* ── AI 摘要块 ── */
+.aiBlock {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  padding: 16px 20px;
+  margin-bottom: 32px;
+}
+
+.aiLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+}
+
+.aiText {
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.7;
+}
+
+.list {
+  margin-top: 8px;
+}
+
+.empty {
+  text-align: center;
+  color: var(--text-3);
+  padding: 60px 0;
+  font-size: 14px;
+}

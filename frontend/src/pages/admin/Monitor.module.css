@@ -1,3 +1,13 @@
-.chartCard { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
-.tableCard { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
-.tableTitle { color: #e6edf3; font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.tableCard {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.tableTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 16px;
+}

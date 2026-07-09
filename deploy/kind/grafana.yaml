@@ -18,11 +18,12 @@ data:
         isDefault: true
         editable: false
 ---
-# ── 仪表盘 provider ──────────────────────────────────────
+# ── 仪表盘 provider + JSON 合并在同一 ConfigMap ──────────
+# 挂到同一目录，不需要 subPath，避免与目录挂载冲突
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboard-provider
+  name: grafana-dashboards
   namespace: techmind
 data:
   provider.yaml: |
@@ -33,15 +34,6 @@ data:
         type: file
         options:
           path: /etc/grafana/provisioning/dashboards
----
-# ── TechMind 仪表盘 JSON ─────────────────────────────────
-# 注意: JSON 内容嵌在 YAML 块标量中，缩进必须对齐
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-dashboards
-  namespace: techmind
-data:
   techmind.json: >-
     {
       "title": "TechMind 监控",
@@ -137,11 +129,8 @@ spec:
           volumeMounts:
             - name: datasources
               mountPath: /etc/grafana/provisioning/datasources
-            - name: dashboard-provider
+            - name: dashboards
               mountPath: /etc/grafana/provisioning/dashboards
-            - name: dashboard-json
-              mountPath: /etc/grafana/provisioning/dashboards/techmind.json
-              subPath: techmind.json
             - name: storage
               mountPath: /var/lib/grafana
           resources:
@@ -155,10 +144,7 @@ spec:
         - name: datasources
           configMap:
             name: grafana-datasources
-        - name: dashboard-provider
-          configMap:
-            name: grafana-dashboard-provider
-        - name: dashboard-json
+        - name: dashboards
           configMap:
             name: grafana-dashboards
         - name: storage

@@ -1,2 +1,75 @@
-.container { max-width: 860px; margin: 0 auto; }
-.header { display: flex; align-items: center; gap: 20px; background: #fff; border-radius: 8px; padding: 32px; margin-bottom: 24px; border: 1px solid #e5e7eb; }
+.spinWrap {
+  display: flex;
+  justify-content: center;
+  padding: 120px 0;
+}
+
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 32px;
+}
+
+.avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #818cf8);
+  color: #fff;
+  font-size: 28px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.info {
+  flex: 1;
+}
+
+.username {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 8px;
+  letter-spacing: -0.3px;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.body {
+  /* ant tabs will use CSS vars from index.css */
+}
+
+.list {
+  margin-top: 8px;
+}
+
+.empty {
+  text-align: center;
+  color: var(--text-3);
+  padding: 60px 0;
+  font-size: 14px;
+}

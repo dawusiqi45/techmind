@@ -1,55 +1,114 @@
 import { useState, useEffect } from 'react'
-import { Tag, Spin } from 'antd'
+import { useNavigate } from 'react-router-dom'
+import { Spin, Tag } from 'antd'
+import { FireOutlined, TagsOutlined } from '@ant-design/icons'
 import { articleApi } from '@/api/article'
 import ArticleCard from '@/components/forum/ArticleCard'
 import styles from './Home.module.css'
 
 export default function Home() {
+  const navigate = useNavigate()
   const [articles, setArticles] = useState<any[]>([])
   const [hotList, setHotList] = useState<any[]>([])
   const [tags, setTags] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   useEffect(() => {
     articleApi.hot().then(r => setHotList(r.data.data || []))
-    articleApi.tags().then(r => setTags((r.data.data || []).slice(0, 15)))
+    articleApi.tags().then(r => setTags((r.data.data || []).slice(0, 18)))
   }, [])
 
   useEffect(() => {
-    setLoading(true)
-    articleApi.list({ page, page_size: 10 }).then(r => {
-      setArticles(r.data.data?.list || [])
+    if (page === 1) setLoading(true)
+    else setLoadingMore(true)
+    articleApi.list({ page, page_size: 15 }).then(r => {
+      const list = r.data.data?.list || []
+      setArticles(prev => page === 1 ? list : [...prev, ...list])
       setTotal(r.data.data?.total || 0)
-    }).finally(() => setLoading(false))
+    }).finally(() => {
+      setLoading(false)
+      setLoadingMore(false)
+    })
   }, [page])
 
   return (
-    <div className={styles.container}>
-      <div className={styles.feed}>
-        {loading ? <Spin /> : articles.map(a => <ArticleCard key={a.id} article={a} />)}
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          {total > articles.length && <a onClick={() => setPage(p => p + 1)}>加载更多</a>}
-        </div>
-      </div>
-      <aside className={styles.sidebar}>
-        <div className={styles.sideCard}>
-          <h4>🔥 热榜</h4>
-          {hotList.map((a, i) => (
-            <div key={a.id} className={styles.hotItem}>
-              <span className={styles.rank}>{i + 1}</span>
-              <a href={`/articles/${a.id}`}>{a.title}</a>
+    <div className={styles.page}>
+      <div className={styles.layout}>
+        {/* 文章列表 */}
+        <section className={styles.feed}>
+          {loading ? (
+            <div className={styles.spinWrap}><Spin /></div>
+          ) : (
+            <>
+              {articles.map(a => <ArticleCard key={a.id} article={a} />)}
+              {total > articles.length && (
+                <button
+                  className={styles.loadMore}
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? <Spin size="small" /> : '加载更多'}
+                </button>
+              )}
+              {articles.length === 0 && (
+                <div className={styles.empty}>
+                  <p>暂无文章</p>
+                  <button className={styles.writeFirst} onClick={() => navigate('/articles/new')}>发布第一篇</button>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
+        {/* 侧边栏 */}
+        <aside className={styles.sidebar}>
+          {hotList.length > 0 && (
+            <div className={styles.sideCard}>
+              <div className={styles.sideCardTitle}>
+                <FireOutlined style={{ color: '#f59e0b' }} />
+                热榜
+              </div>
+              <div className={styles.hotList}>
+                {hotList.slice(0, 8).map((a, i) => (
+                  <a
+                    key={a.id}
+                    href={`/articles/${a.id}`}
+                    className={styles.hotItem}
+                  >
+                    <span className={`${styles.rank} ${i < 3 ? styles.rankTop : ''}`}>
+                      {i + 1}
+                    </span>
+                    <span className={styles.hotTitle}>{a.title}</span>
+                  </a>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
-        <div className={styles.sideCard}>
-          <h4>🏷 热门标签</h4>
-          <div className={styles.tagCloud}>
-            {tags.map(t => <Tag key={t.id} color="blue" style={{ marginBottom: 6 }}>{t.name}</Tag>)}
-          </div>
-        </div>
-      </aside>
+          )}
+
+          {tags.length > 0 && (
+            <div className={styles.sideCard}>
+              <div className={styles.sideCardTitle}>
+                <TagsOutlined style={{ color: 'var(--accent)' }} />
+                热门标签
+              </div>
+              <div className={styles.tagCloud}>
+                {tags.map(t => (
+                  <Tag
+                    key={t.id}
+                    className={styles.tag}
+                    onClick={() => navigate(`/search?q=${encodeURIComponent(t.name)}`)}
+                  >
+                    {t.name}
+                  </Tag>
+                ))}
+              </div>
+            </div>
+          )}
+        </aside>
+      </div>
     </div>
   )
 }

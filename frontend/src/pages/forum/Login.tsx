@@ -1,20 +1,9 @@
 import { useState } from 'react'
-import { Form, Input, Button, Tabs, message } from 'antd'
+import { Form, Input, Tabs, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/store/auth'
 import styles from './Login.module.css'
-
-interface LoginFormValues {
-  username: string
-  password: string
-}
-
-interface RegisterFormValues {
-  username: string
-  email: string
-  password: string
-}
 
 export default function Login() {
   const navigate = useNavigate()
@@ -23,111 +12,92 @@ export default function Login() {
   const [loginLoading, setLoginLoading] = useState(false)
   const [registerLoading, setRegisterLoading] = useState(false)
 
-  const handleLogin = async (values: LoginFormValues) => {
+  const handleLogin = async (values: { username: string; password: string }) => {
     setLoginLoading(true)
     try {
       const res = await authApi.login(values)
-      const { access_token, refresh_token } = (res as { data: { access_token: string; refresh_token: string } }).data
+      const { access_token, refresh_token } = res.data.data as { access_token: string; refresh_token: string }
       const profileRes = await authApi.getProfile()
-      const user = (profileRes as { data: { id: number; username: string; role: number; avatar: string } }).data
+      const user = profileRes.data.data as { id: number; username: string; role: number; avatar: string }
       login(access_token, refresh_token, user)
       navigate('/')
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      message.error(error?.response?.data?.message ?? '登录失败，请重试')
+      const error = err as { response?: { data?: { msg?: string } } }
+      message.error(error?.response?.data?.msg ?? '登录失败，请重试')
     } finally {
       setLoginLoading(false)
     }
   }
 
-  const handleRegister = async (values: RegisterFormValues) => {
+  const handleRegister = async (values: { username: string; email: string; password: string }) => {
     setRegisterLoading(true)
     try {
       await authApi.register(values)
       message.success('注册成功，请登录')
       setActiveTab('login')
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      message.error(error?.response?.data?.message ?? '注册失败，请重试')
+      const error = err as { response?: { data?: { msg?: string } } }
+      message.error(error?.response?.data?.msg ?? '注册失败，请重试')
     } finally {
       setRegisterLoading(false)
     }
   }
 
   const loginForm = (
-    <Form layout="vertical" onFinish={handleLogin} autoComplete="off">
-      <Form.Item
-        label="用户名"
-        name="username"
-        rules={[{ required: true, message: '请输入用户名' }]}
+    <Form layout="vertical" onFinish={handleLogin} autoComplete="off" className={styles.form}>
+      <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
+        <Input placeholder="用户名" size="large" className={styles.input} />
+      </Form.Item>
+      <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
+        <Input.Password placeholder="密码" size="large" className={styles.input} />
+      </Form.Item>
+      <button
+        type="submit"
+        className={styles.submitBtn}
+        disabled={loginLoading}
       >
-        <Input placeholder="请输入用户名" />
-      </Form.Item>
-      <Form.Item
-        label="密码"
-        name="password"
-        rules={[{ required: true, message: '请输入密码' }]}
-      >
-        <Input.Password placeholder="请输入密码" />
-      </Form.Item>
-      <Form.Item>
-        <Button type="primary" htmlType="submit" loading={loginLoading} block>
-          登录
-        </Button>
-      </Form.Item>
+        {loginLoading ? '登录中...' : '登录'}
+      </button>
     </Form>
   )
 
   const registerForm = (
-    <Form layout="vertical" onFinish={handleRegister} autoComplete="off">
-      <Form.Item
-        label="用户名"
-        name="username"
-        rules={[{ required: true, message: '请输入用户名' }]}
+    <Form layout="vertical" onFinish={handleRegister} autoComplete="off" className={styles.form}>
+      <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
+        <Input placeholder="用户名" size="large" className={styles.input} />
+      </Form.Item>
+      <Form.Item name="email" rules={[{ required: true }, { type: 'email', message: '邮箱格式不正确' }]}>
+        <Input placeholder="邮箱" size="large" className={styles.input} />
+      </Form.Item>
+      <Form.Item name="password" rules={[{ required: true }, { min: 6, message: '密码至少 6 位' }]}>
+        <Input.Password placeholder="密码（至少 6 位）" size="large" className={styles.input} />
+      </Form.Item>
+      <button
+        type="submit"
+        className={styles.submitBtn}
+        disabled={registerLoading}
       >
-        <Input placeholder="请输入用户名" />
-      </Form.Item>
-      <Form.Item
-        label="邮箱"
-        name="email"
-        rules={[
-          { required: true, message: '请输入邮箱' },
-          { type: 'email', message: '邮箱格式不正确' },
-        ]}
-      >
-        <Input placeholder="请输入邮箱" />
-      </Form.Item>
-      <Form.Item
-        label="密码"
-        name="password"
-        rules={[
-          { required: true, message: '请输入密码' },
-          { min: 6, message: '密码至少 6 位' },
-        ]}
-      >
-        <Input.Password placeholder="请输入密码（至少 6 位）" />
-      </Form.Item>
-      <Form.Item>
-        <Button type="primary" htmlType="submit" loading={registerLoading} block>
-          注册
-        </Button>
-      </Form.Item>
+        {registerLoading ? '注册中...' : '注册'}
+      </button>
     </Form>
   )
 
-  const items = [
-    { key: 'login', label: '登录', children: loginForm },
-    { key: 'register', label: '注册', children: registerForm },
-  ]
-
   return (
-    <div className={styles.container}>
+    <div className={styles.page}>
       <div className={styles.card}>
+        <div className={styles.brand}>
+          <span className={styles.brandIcon}>⬡</span>
+          <span className={styles.brandName}>TechMind</span>
+        </div>
+        <p className={styles.tagline}>开发者的技术交流社区</p>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
-          items={items}
           centered
+          items={[
+            { key: 'login', label: '登录', children: loginForm },
+            { key: 'register', label: '注册', children: registerForm },
+          ]}
         />
       </div>
     </div>
