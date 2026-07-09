@@ -52,7 +52,7 @@ if kubectl get ns ingress-nginx >/dev/null 2>&1; then
   kubectl delete job ingress-nginx-admission-create ingress-nginx-admission-patch \
     -n ingress-nginx --ignore-not-found=true
 fi
-kubectl apply -f "${SCRIPT_DIR}/ingress-nginx-kind.yaml"
+kubectl apply --validate=false -f "${SCRIPT_DIR}/ingress-nginx-kind.yaml"
 echo "  等待 Ingress Admission Job 完成..."
 kubectl wait --namespace ingress-nginx \
   --for=condition=complete job/ingress-nginx-admission-create \
@@ -67,7 +67,7 @@ kubectl wait --namespace ingress-nginx \
   --timeout=180s
 
 # Metrics Server
-kubectl apply -f "${SCRIPT_DIR}/metrics-server.yaml"
+kubectl apply --validate=false -f "${SCRIPT_DIR}/metrics-server.yaml"
 echo "  等待 Metrics Server 就绪..."
 kubectl rollout status deployment/metrics-server -n kube-system --timeout=120s
 
