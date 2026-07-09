@@ -3,14 +3,26 @@ import type { ReactNode } from 'react'
 import ForumLayout from '@/layouts/ForumLayout'
 import AdminLayout from '@/layouts/AdminLayout'
 import Login from '@/pages/forum/Login'
+import Home from '@/pages/forum/Home'
+import Search from '@/pages/forum/Search'
+import ArticleDetail from '@/pages/forum/ArticleDetail'
+import ArticleEditor from '@/pages/forum/ArticleEditor'
+import UserProfile from '@/pages/forum/UserProfile'
 import NotFound from '@/pages/NotFound'
 import Forbidden from '@/pages/Forbidden'
+import Monitor from '@/pages/admin/Monitor'
+import MonitorSlow from '@/pages/admin/MonitorSlow'
+import MonitorErrors from '@/pages/admin/MonitorErrors'
+import MonitorQueues from '@/pages/admin/MonitorQueues'
+import MonitorAI from '@/pages/admin/MonitorAI'
+import AlertList from '@/pages/admin/AlertList'
+import AlertDetail from '@/pages/admin/AlertDetail'
+import OpsReports from '@/pages/admin/OpsReports'
+import OpsReportDetail from '@/pages/admin/OpsReportDetail'
+import OpsDiagnose from '@/pages/admin/OpsDiagnose'
+import Runbooks from '@/pages/admin/Runbooks'
+import Deployments from '@/pages/admin/Deployments'
 import { useAuthStore } from '@/store/auth'
-
-// 占位，后续 Task 会替换
-const Placeholder = ({ name }: { name: string }) => (
-  <div style={{ padding: 40, color: '#888' }}>{name} (待实现)</div>
-)
 
 function AdminGuard({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user)
@@ -25,13 +37,13 @@ export default function App() {
       <Routes>
         {/* Forum routes */}
         <Route element={<ForumLayout />}>
-          <Route path="/" element={<Placeholder name="Home" />} />
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/search" element={<Placeholder name="Search" />} />
-          <Route path="/articles/new" element={<Placeholder name="ArticleEditor" />} />
-          <Route path="/articles/:id" element={<Placeholder name="ArticleDetail" />} />
-          <Route path="/articles/:id/edit" element={<Placeholder name="ArticleEditor (edit)" />} />
-          <Route path="/user/profile" element={<Placeholder name="UserProfile" />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/articles/new" element={<ArticleEditor />} />
+          <Route path="/articles/:id" element={<ArticleDetail />} />
+          <Route path="/articles/:id/edit" element={<ArticleEditor />} />
+          <Route path="/user/profile" element={<UserProfile />} />
         </Route>
 
         {/* Admin routes */}
@@ -43,18 +55,18 @@ export default function App() {
           }
         >
           <Route path="/admin" element={<Navigate to="/admin/monitor" replace />} />
-          <Route path="/admin/monitor" element={<Placeholder name="Monitor" />} />
-          <Route path="/admin/monitor/slow" element={<Placeholder name="MonitorSlow" />} />
-          <Route path="/admin/monitor/errors" element={<Placeholder name="MonitorErrors" />} />
-          <Route path="/admin/monitor/queues" element={<Placeholder name="MonitorQueues" />} />
-          <Route path="/admin/monitor/ai" element={<Placeholder name="MonitorAI" />} />
-          <Route path="/admin/alerts" element={<Placeholder name="AlertList" />} />
-          <Route path="/admin/alerts/:id" element={<Placeholder name="AlertDetail" />} />
-          <Route path="/admin/ops/reports" element={<Placeholder name="OpsReports" />} />
-          <Route path="/admin/ops/reports/:id" element={<Placeholder name="OpsReportDetail" />} />
-          <Route path="/admin/ops/diagnose" element={<Placeholder name="OpsDiagnose" />} />
-          <Route path="/admin/runbooks" element={<Placeholder name="Runbooks" />} />
-          <Route path="/admin/deployments" element={<Placeholder name="Deployments" />} />
+          <Route path="/admin/monitor" element={<Monitor />} />
+          <Route path="/admin/monitor/slow" element={<MonitorSlow />} />
+          <Route path="/admin/monitor/errors" element={<MonitorErrors />} />
+          <Route path="/admin/monitor/queues" element={<MonitorQueues />} />
+          <Route path="/admin/monitor/ai" element={<MonitorAI />} />
+          <Route path="/admin/alerts" element={<AlertList />} />
+          <Route path="/admin/alerts/:id" element={<AlertDetail />} />
+          <Route path="/admin/ops/reports" element={<OpsReports />} />
+          <Route path="/admin/ops/reports/:id" element={<OpsReportDetail />} />
+          <Route path="/admin/ops/diagnose" element={<OpsDiagnose />} />
+          <Route path="/admin/runbooks" element={<Runbooks />} />
+          <Route path="/admin/deployments" element={<Deployments />} />
         </Route>
 
         {/* Error pages */}
