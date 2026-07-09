@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS `user` (
     `id`           BIGINT       NOT NULL COMMENT '雪花ID',
     `username`     VARCHAR(64)  NOT NULL COMMENT '用户名',
     `password`     VARCHAR(128) NOT NULL COMMENT 'bcrypt 密码哈希',
-    `email`        VARCHAR(128) NOT NULL DEFAULT '' COMMENT '邮箱',
+    `email`        VARCHAR(128) NULL DEFAULT NULL COMMENT '邮箱',
     `avatar`       VARCHAR(256) NOT NULL DEFAULT '' COMMENT '头像URL',
     `role`         TINYINT      NOT NULL DEFAULT 0 COMMENT '0=普通用户 1=管理员',
     `status`       TINYINT      NOT NULL DEFAULT 1 COMMENT '1=正常 0=禁用',
@@ -271,5 +271,19 @@ CREATE TABLE IF NOT EXISTS `ops_tool_call` (
     PRIMARY KEY (`id`),
     KEY `idx_report_id` (`report_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Agent工具调用审计表';
+
+CREATE TABLE IF NOT EXISTS `user_like` (
+    `id`         BIGINT   NOT NULL AUTO_INCREMENT,
+    `user_id`    BIGINT   NOT NULL,
+    `article_id` BIGINT   NOT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_article` (`user_id`, `article_id`),
+    KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户点赞记录表';
+
+-- 迁移：邮箱字段改为允许 NULL
+-- ALTER TABLE `user` MODIFY COLUMN `email` VARCHAR(128) NULL DEFAULT NULL;
+-- UPDATE `user` SET email = NULL WHERE email = '';
 
 SET FOREIGN_KEY_CHECKS = 1;

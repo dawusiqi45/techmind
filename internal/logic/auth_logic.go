@@ -119,3 +119,29 @@ func GetProfile(userID int64) (*model.UserProfile, error) {
 		CreatedAt: u.CreatedAt,
 	}, nil
 }
+
+type UpdateProfileInput struct {
+	Username string
+	Email    string
+}
+
+func UpdateProfile(userID int64, in *UpdateProfileInput) error {
+	if in.Username != "" {
+		exists, err := mysqlDAO.ExistsUsername(in.Username)
+		if err != nil {
+			return fmt.Errorf("update profile: check username: %w", err)
+		}
+		u, err := mysqlDAO.GetUserByID(userID)
+		if err != nil {
+			return fmt.Errorf("update profile: get user: %w", err)
+		}
+		if u != nil && u.Username != in.Username && exists {
+			return ErrUserExist
+		}
+	}
+	return mysqlDAO.UpdateUserProfile(userID, in.Username, in.Email)
+}
+
+func UpdateAvatar(userID int64, avatar string) error {
+	return mysqlDAO.UpdateUserAvatar(userID, avatar)
+}

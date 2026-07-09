@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import { Outlet, useNavigate, Link } from 'react-router-dom'
 import { Input, Avatar, Dropdown } from 'antd'
 import type { MenuProps } from 'antd'
-import { SearchOutlined, EditOutlined, UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons'
+import { SearchOutlined, EditOutlined, UserOutlined, LogoutOutlined, SettingOutlined, HeartOutlined, StarOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/store/auth'
+import { useLoginModal } from '@/store/loginModal'
 import styles from './ForumLayout.module.css'
 
 export default function ForumLayout() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  const openLoginModal = useLoginModal((s) => s.open)
   const [scrolled, setScrolled] = useState(false)
   const [searchExpanded, setSearchExpanded] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
@@ -38,6 +40,18 @@ export default function ForumLayout() {
       icon: <SettingOutlined />,
       label: '个人主页',
       onClick: () => navigate('/user/profile'),
+    },
+    {
+      key: 'favorites',
+      icon: <StarOutlined />,
+      label: '我的收藏',
+      onClick: () => navigate('/user/profile?tab=favorites'),
+    },
+    {
+      key: 'likes',
+      icon: <HeartOutlined />,
+      label: '我的点赞',
+      onClick: () => navigate('/user/profile?tab=likes'),
     },
     { type: 'divider' },
     {
@@ -102,7 +116,7 @@ export default function ForumLayout() {
             ) : (
               <button
                 className={styles.loginBtn}
-                onClick={() => navigate('/login')}
+                onClick={openLoginModal}
               >
                 登录 / 注册
               </button>

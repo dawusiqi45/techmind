@@ -71,3 +71,21 @@ func GetUserStats(userID int64) (articleCount, likeCount, favoriteCount int, err
 	favoriteCount = int(stats.FavoriteTotal)
 	return
 }
+
+func UpdateUserProfile(userID int64, username, email string) error {
+	updates := map[string]interface{}{}
+	if username != "" {
+		updates["username"] = username
+	}
+	if email != "" {
+		updates["email"] = email
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+	return DB.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
+}
+
+func UpdateUserEmail(userID int64, email string) error {
+	return DB.Model(&model.User{}).Where("id = ?", userID).Update("email", email).Error
+}

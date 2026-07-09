@@ -3,11 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { Spin, Tag } from 'antd'
 import { FireOutlined, TagsOutlined } from '@ant-design/icons'
 import { articleApi } from '@/api/article'
+import { useAuthStore } from '@/store/auth'
+import { useLoginModal } from '@/store/loginModal'
 import ArticleCard from '@/components/forum/ArticleCard'
 import styles from './Home.module.css'
 
 export default function Home() {
   const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
+  const openLoginModal = useLoginModal((s) => s.open)
   const [articles, setArticles] = useState<any[]>([])
   const [hotList, setHotList] = useState<any[]>([])
   const [tags, setTags] = useState<any[]>([])
@@ -53,10 +57,20 @@ export default function Home() {
                   {loadingMore ? <Spin size="small" /> : '加载更多'}
                 </button>
               )}
-              {articles.length === 0 && (
-                <div className={styles.empty}>
-                  <p>暂无文章</p>
-                  <button className={styles.writeFirst} onClick={() => navigate('/articles/new')}>发布第一篇</button>
+              {articles.length === 0 && !loading && (
+                <div className={styles.hero}>
+                  <h2 className={styles.heroTitle}>分享你的技术见解</h2>
+                  <p className={styles.heroDesc}>加入 TechMind，与开发者一起交流技术、探讨架构、分享经验</p>
+                  <div className={styles.heroBtns}>
+                    {user ? (
+                      <button className={styles.heroPrimary} onClick={() => navigate('/articles/new')}>开始写文章</button>
+                    ) : (
+                      <>
+                        <button className={styles.heroPrimary} onClick={openLoginModal}>注册 / 登录</button>
+                        <button className={styles.heroSecondary} onClick={() => navigate('/search?q=Go')}>浏览文章</button>
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
             </>

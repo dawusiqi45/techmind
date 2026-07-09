@@ -1,19 +1,17 @@
-.page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: var(--bg);
+.modalWrap :global(.ant-modal-content) {
+  background: var(--surface-1) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 16px !important;
+  padding: 0 !important;
+  overflow: hidden;
 }
 
-.card {
-  width: 100%;
-  max-width: 400px;
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 36px 32px 28px;
+.modalWrap :global(.ant-modal-close) {
+  color: var(--text-3) !important;
+}
+
+.content {
+  padding: 32px 28px 24px;
 }
 
 .brand {
@@ -40,7 +38,7 @@
   text-align: center;
   font-size: 13px;
   color: var(--text-3);
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .form {
@@ -82,23 +80,4 @@
 .submitBtn:disabled {
   opacity: 0.6;
   cursor: default;
-}
-
-.backBtn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: none;
-  color: var(--text-3);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 0;
-  margin-bottom: 20px;
-  transition: color 150ms ease;
-  font-family: var(--sans);
-}
-
-.backBtn:hover {
-  color: var(--text-1);
 }

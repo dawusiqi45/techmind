@@ -176,15 +176,13 @@ func DeleteArticle(ctx context.Context, articleID, userID int64) error {
 
 // LikeArticle 点赞/取消点赞，返回当前是否已点赞
 func LikeArticle(ctx context.Context, articleID, userID int64) (bool, error) {
-	// 先检查是否已点赞
-	liked, err := redisDAO.IsLiked(ctx, articleID, userID)
+	liked, err := mysqlDAO.ExistsUserLike(userID, articleID)
 	if err != nil {
 		return false, err
 	}
 
 	if liked {
-		// 取消点赞
-		if _, err := redisDAO.UnlikeArticle(ctx, articleID, userID); err != nil {
+		if err := mysqlDAO.DeleteUserLike(userID, articleID); err != nil {
 			return false, err
 		}
 		_ = mysqlDAO.IncrLikeCount(articleID, -1)
@@ -192,8 +190,7 @@ func LikeArticle(ctx context.Context, articleID, userID int64) (bool, error) {
 		return false, nil
 	}
 
-	// 新增点赞
-	if _, err := redisDAO.LikeArticle(ctx, articleID, userID); err != nil {
+	if err := mysqlDAO.CreateUserLike(userID, articleID); err != nil {
 		return false, err
 	}
 	_ = mysqlDAO.IncrLikeCount(articleID, 1)
@@ -322,4 +319,12 @@ func refreshHotScore(ctx context.Context, articleID int64) {
 	}
 	score := calcHotScore(a.ViewCount, a.LikeCount, a.FavoriteCount, a.CommentCount, a.CreatedAt)
 	_ = redisDAO.UpdateHotScore(ctx, articleID, score)
+}
+
+func ListUserFavorites(userID int64, page, pageSize int) ([]*model.ArticleListItem, int, error) {
+	return mysqlDAO.ListFavoritesByUserID(userID, page, pageSize)
+}
+
+func ListUserLikes(userID int64, page, pageSize int) ([]*model.ArticleListItem, int, error) {
+	return mysqlDAO.ListUserLikesByUserID(userID, page, pageSize)
 }

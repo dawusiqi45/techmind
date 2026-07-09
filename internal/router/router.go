@@ -28,6 +28,8 @@ func Setup(mode string) *gin.Engine {
 	r.Use(middleware.SlowRequest(800 * time.Millisecond))
 	r.Use(middleware.Recovery())
 
+	r.Static("/uploads", "./uploads")
+
 	// --- 系统路由 ---
 	r.GET("/healthz", healthzHandler)
 	r.GET("/readyz", readyzHandler)
@@ -50,6 +52,10 @@ func Setup(mode string) *gin.Engine {
 	{
 		// 用户
 		authed.GET("/user/profile", controller.GetProfile)
+		authed.GET("/user/favorites", controller.ListUserFavorites)
+		authed.GET("/user/likes", controller.ListUserLikes)
+		authed.PUT("/user/profile", controller.UpdateProfile)
+		authed.POST("/user/avatar", controller.UploadAvatar)
 
 		// 文章
 		authed.POST("/articles", controller.CreateArticle)

@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { Form, Input, Tabs, message } from 'antd'
-import { useNavigate } from 'react-router-dom'
+import { Modal, Form, Input, Tabs, message } from 'antd'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/store/auth'
+import { useLoginModal } from '@/store/loginModal'
 import { tokenUtil } from '@/utils/token'
-import styles from './Login.module.css'
+import styles from './LoginModal.module.css'
 
-export default function Login() {
-  const navigate = useNavigate()
+export default function LoginModal() {
+  const visible = useLoginModal((s) => s.visible)
+  const close = useLoginModal((s) => s.close)
   const login = useAuthStore((s) => s.login)
   const [activeTab, setActiveTab] = useState('login')
   const [loginLoading, setLoginLoading] = useState(false)
@@ -23,7 +24,8 @@ export default function Login() {
       const profileRes = await authApi.getProfile()
       const user = profileRes.data.data as { id: number; username: string; role: number; avatar: string }
       login(access_token, refresh_token, user)
-      navigate('/')
+      close()
+      message.success('登录成功')
     } catch (err: unknown) {
       const error = err as { response?: { data?: { msg?: string } } }
       message.error(error?.response?.data?.msg ?? '登录失败，请重试')
@@ -54,11 +56,7 @@ export default function Login() {
       <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
         <Input.Password placeholder="密码" size="large" className={styles.input} />
       </Form.Item>
-      <button
-        type="submit"
-        className={styles.submitBtn}
-        disabled={loginLoading}
-      >
+      <button type="submit" className={styles.submitBtn} disabled={loginLoading}>
         {loginLoading ? '登录中...' : '登录'}
       </button>
     </Form>
@@ -75,22 +73,23 @@ export default function Login() {
       <Form.Item name="password" rules={[{ required: true }, { min: 6, message: '密码至少 6 位' }]}>
         <Input.Password placeholder="密码（至少 6 位）" size="large" className={styles.input} />
       </Form.Item>
-      <button
-        type="submit"
-        className={styles.submitBtn}
-        disabled={registerLoading}
-      >
+      <button type="submit" className={styles.submitBtn} disabled={registerLoading}>
         {registerLoading ? '注册中...' : '注册'}
       </button>
     </Form>
   )
 
   return (
-    <div className={styles.page}>
-      <div className={styles.card}>
-        <button className={styles.backBtn} onClick={() => navigate('/')}>
-          ← 返回
-        </button>
+    <Modal
+      open={visible}
+      onCancel={close}
+      footer={null}
+      centered
+      width={400}
+      className={styles.modalWrap}
+      destroyOnClose
+    >
+      <div className={styles.content}>
         <div className={styles.brand}>
           <span className={styles.brandIcon}>⬡</span>
           <span className={styles.brandName}>TechMind</span>
@@ -106,6 +105,6 @@ export default function Login() {
           ]}
         />
       </div>
-    </div>
+    </Modal>
   )
 }

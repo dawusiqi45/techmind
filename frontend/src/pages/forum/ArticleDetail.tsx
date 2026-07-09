@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Input, Modal, Spin } from 'antd'
+import { Input, Spin } from 'antd'
 import { LikeOutlined, StarOutlined, LikeFilled, StarFilled, ArrowLeftOutlined } from '@ant-design/icons'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -22,8 +22,6 @@ export default function ArticleDetail() {
   const [favorited, setFavorited] = useState(false)
   const { user } = useAuthStore()
   const openLoginModal = useLoginModal((s) => s.open)
-  const closeLoginModal = useLoginModal((s) => s.close)
-  const loginModalVisible = useLoginModal((s) => s.visible)
 
   useEffect(() => {
     if (!id) return
@@ -71,25 +69,6 @@ export default function ArticleDetail() {
 
   return (
     <div className={styles.page}>
-      <Modal
-        open={loginModalVisible}
-        onCancel={closeLoginModal}
-        footer={null}
-        centered
-        width={380}
-        className={styles.loginModalWrap}
-      >
-        <div className={styles.loginModalContent}>
-          <div className={styles.loginModalIcon}>🔐</div>
-          <h3 className={styles.loginModalTitle}>需要登录</h3>
-          <p className={styles.loginModalDesc}>登录后才能点赞、收藏和评论</p>
-          <div className={styles.loginModalBtns}>
-            <button className={styles.cancelBtn} onClick={closeLoginModal}>取消</button>
-            <button className={styles.goLoginBtn} onClick={() => { closeLoginModal(); navigate('/login') }}>去登录</button>
-          </div>
-        </div>
-      </Modal>
-
       <div className={styles.container}>
         <button className={styles.back} onClick={() => navigate(-1)}>
           <ArrowLeftOutlined /> 返回
@@ -168,7 +147,7 @@ export default function ArticleDetail() {
             ) : (
               <div className={styles.loginPrompt}>
                 <span>登录后参与讨论</span>
-                <button className={styles.promptBtn} onClick={() => navigate('/login')}>
+                <button className={styles.promptBtn} onClick={() => openLoginModal()}>
                   去登录 →
                 </button>
               </div>

@@ -44,7 +44,6 @@ apiClient.interceptors.response.use(
       return apiClient(original)
     } catch {
       tokenUtil.clear()
-      window.location.href = '/login'
       return Promise.reject(err)
     } finally {
       refreshing = false

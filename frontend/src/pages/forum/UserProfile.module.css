@@ -5,71 +5,152 @@
 }
 
 .page {
-  max-width: 860px;
+  max-width: 800px;
   margin: 0 auto;
-  padding: 40px 24px 80px;
+  padding: 32px 24px 80px;
 }
 
-.header {
+.profileTab {
   display: flex;
-  align-items: center;
-  gap: 24px;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.avatarSection {
+  text-align: center;
   padding-bottom: 32px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 32px;
+}
+
+.avatarWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .avatar {
-  width: 72px;
-  height: 72px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), #818cf8);
+  background: var(--accent);
   color: #fff;
   font-size: 28px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
 }
 
-.info {
-  flex: 1;
+.avatarUploadBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-3);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 10px;
+  transition: border-color 150ms ease, color 150ms ease;
+  font-family: var(--sans);
+}
+
+.avatarUploadBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .username {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--text-1);
   margin-bottom: 8px;
-  letter-spacing: -0.3px;
 }
 
-.meta {
+.metaRow {
   display: flex;
+  justify-content: center;
+  gap: 20px;
   flex-wrap: wrap;
-  gap: 16px;
 }
 
 .metaItem {
+  font-size: 13px;
+  color: var(--text-3);
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.editSection {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 20px;
+}
+
+.editField {
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
   font-size: 13px;
-  color: var(--text-3);
+  color: var(--text-2);
+  margin-bottom: 6px;
+  font-weight: 500;
 }
 
-.body {
-  /* ant tabs will use CSS vars from index.css */
+.editInput {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-1) !important;
+  border-radius: 8px !important;
 }
 
-.list {
+.saveBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 24px;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease;
+  font-family: var(--sans);
   margin-top: 8px;
 }
 
-.empty {
+.saveBtn:hover:not(:disabled) {
+  background: #818cf8;
+}
+
+.saveBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.listTab {
+  min-height: 200px;
+}
+
+.emptyList {
   text-align: center;
-  color: var(--text-3);
   padding: 60px 0;
+  color: var(--text-3);
   font-size: 14px;
 }

@@ -26,3 +26,12 @@ type UserProfile struct {
 	Role      int8      `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type UserLike struct {
+	ID        int64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID    int64     `gorm:"not null;index"          json:"user_id"`
+	ArticleID int64     `gorm:"not null"                 json:"article_id"`
+	CreatedAt time.Time `                                json:"created_at"`
+}
+
+func (UserLike) TableName() string { return "user_like" }

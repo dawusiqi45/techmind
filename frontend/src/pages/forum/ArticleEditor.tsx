@@ -5,12 +5,14 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { articleApi } from '@/api/article'
 import { useAuthStore } from '@/store/auth'
+import { useLoginModal } from '@/store/loginModal'
 import styles from './ArticleEditor.module.css'
 
 export default function ArticleEditor() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const openLoginModal = useLoginModal((s) => s.open)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [tagIds, setTagIds] = useState<number[]>([])
@@ -19,7 +21,7 @@ export default function ArticleEditor() {
 
   useEffect(() => {
     if (!user) {
-      navigate('/login')
+      openLoginModal()
       return
     }
     articleApi.tags().then(r => setAllTags(r.data.data || []))
@@ -31,7 +33,7 @@ export default function ArticleEditor() {
         setTagIds(a.tags?.map((t: any) => t.id) || [])
       })
     }
-  }, [id, user, navigate])
+  }, [id, user, openLoginModal])
 
   async function handleSubmit() {
     if (!title.trim() || !content.trim()) return message.error('标题和内容不能为空')

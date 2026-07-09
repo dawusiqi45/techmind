@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import ForumLayout from '@/layouts/ForumLayout'
 import AdminLayout from '@/layouts/AdminLayout'
@@ -23,6 +24,7 @@ import OpsDiagnose from '@/pages/admin/OpsDiagnose'
 import Runbooks from '@/pages/admin/Runbooks'
 import Deployments from '@/pages/admin/Deployments'
 import { useAuthStore } from '@/store/auth'
+import LoginModal from '@/components/forum/LoginModal'
 
 function AdminGuard({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user)
@@ -32,6 +34,8 @@ function AdminGuard({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
+  const init = useAuthStore((s) => s.init)
+  useEffect(() => { init() }, [init])
   return (
     <BrowserRouter>
       <Routes>
@@ -73,6 +77,7 @@ export default function App() {
         <Route path="/403" element={<Forbidden />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <LoginModal />
     </BrowserRouter>
   )
 }

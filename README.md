@@ -183,6 +183,10 @@ Prometheus: http://<虚拟机IP>:30909
 | POST | `/api/v1/auth/login` | 登录 |
 | POST | `/api/v1/auth/refresh` | 刷新 Token |
 | GET | `/api/v1/user/profile` | 当前用户信息 |
+| PUT | `/api/v1/user/profile` | 更新用户资料 |
+| POST | `/api/v1/user/avatar` | 上传头像 |
+| GET | `/api/v1/user/favorites` | 我的收藏列表 |
+| GET | `/api/v1/user/likes` | 我的点赞列表 |
 | POST | `/api/v1/articles` | 发布文章 |
 | GET | `/api/v1/articles` | 文章列表 |
 | GET | `/api/v1/articles/:id` | 文章详情 |
