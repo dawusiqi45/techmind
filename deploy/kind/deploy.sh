@@ -20,6 +20,18 @@ preload_registry_k8s_image() {
   kind load docker-image "${image}" --name "${CLUSTER_NAME}"
 }
 
+preload_docker_image() {
+  local image="$1"
+
+  if ! docker image inspect "${image}" >/dev/null 2>&1; then
+    echo "  拉取 ${image}"
+    docker pull "${image}"
+  fi
+
+  echo "  注入 ${image} 到 kind 集群"
+  kind load docker-image "${image}" --name "${CLUSTER_NAME}"
+}
+
 echo "=========================================="
 echo "  TechMind Kind 集群一键部署"
 echo "=========================================="
@@ -98,6 +110,10 @@ echo "[5/8] 加载镜像到 kind 节点..."
 kind load docker-image techmind-server:latest --name ${CLUSTER_NAME}
 kind load docker-image techmind-worker:latest --name ${CLUSTER_NAME}
 kind load docker-image techmind-frontend:latest --name ${CLUSTER_NAME}
+preload_docker_image "mysql:8.0"
+preload_docker_image "redis:7-alpine"
+preload_docker_image "prom/prometheus:v2.55.0"
+preload_docker_image "prom/alertmanager:v0.27.0"
 echo "  镜像加载完成"
 
 # ============================================
@@ -126,7 +142,7 @@ kubectl apply -f "${SCRIPT_DIR}/prometheus.yaml"
 kubectl apply -f "${SCRIPT_DIR}/alertmanager.yaml"
 
 echo "  等待 MySQL 就绪 (可能需要 1-2 分钟)..."
-kubectl rollout status statefulset/mysql -n ${NAMESPACE} --timeout=180s
+kubectl rollout status statefulset/mysql -n ${NAMESPACE} --timeout=360s
 echo "  等待 Redis 就绪..."
 kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=60s
 
