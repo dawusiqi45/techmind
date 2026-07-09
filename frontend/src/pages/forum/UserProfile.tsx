@@ -76,7 +76,7 @@ export default function UserProfile() {
       const res = await authApi.updateProfile(data)
       const updated = res.data.data
       setUser(updated)
-      setCurrentUser({ ...currentUser, username: updated.username, email: updated.email, avatar: updated.avatar })
+      setCurrentUser({ ...currentUser!, username: updated.username, email: updated.email, avatar: updated.avatar })
       message.success('保存成功')
     } catch {
       message.error('保存失败')
@@ -90,7 +90,7 @@ export default function UserProfile() {
       const res = await authApi.uploadAvatar(file)
       const avatar = res.data.data.avatar
       setUser((u: any) => ({ ...u, avatar }))
-      setCurrentUser({ ...currentUser, avatar })
+      setCurrentUser({ ...currentUser!, avatar })
       message.success('头像更新成功')
     } catch {
       message.error('头像上传失败')

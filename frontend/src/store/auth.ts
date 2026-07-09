@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { tokenUtil } from '@/utils/token'
 import { authApi } from '@/api/auth'
 
-interface User { id: number; username: string; role: number; avatar: string }
+interface User { id: number; username: string; role: number; avatar: string; email?: string }
 interface AuthState {
   user: User | null
   initialized: boolean
