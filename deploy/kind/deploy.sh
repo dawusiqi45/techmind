@@ -151,6 +151,7 @@ preload_docker_image "mysql:8.0"
 preload_docker_image "redis:7-alpine"
 preload_docker_image "prom/prometheus:v2.55.0"
 preload_docker_image "prom/alertmanager:v0.27.0"
+preload_docker_image "grafana/grafana:11.2.0"
 echo "  镜像加载完成"
 
 # ============================================
@@ -177,6 +178,7 @@ kubectl apply -f "${SCRIPT_DIR}/prometheus-config.yaml"
 kubectl apply -f "${SCRIPT_DIR}/alertmanager-config.yaml"
 kubectl apply -f "${SCRIPT_DIR}/prometheus.yaml"
 kubectl apply -f "${SCRIPT_DIR}/alertmanager.yaml"
+kubectl apply -f "${SCRIPT_DIR}/grafana.yaml"
 
 echo "  等待 MySQL 就绪 (可能需要 1-2 分钟)..."
 kubectl rollout status statefulset/mysql -n ${NAMESPACE} --timeout=360s

@@ -1,0 +1,180 @@
+# Grafana for TechMind — 中文界面，自动挂载数据源和仪表盘
+# 访问地址: http://<VM_IP>:30300
+---
+# ── 数据源配置 ──────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: techmind
+data:
+  prometheus.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+        editable: false
+---
+# ── 仪表盘 provider ──────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: techmind
+data:
+  provider.yaml: |
+    apiVersion: 1
+    providers:
+      - name: techmind
+        folder: TechMind
+        type: file
+        options:
+          path: /etc/grafana/provisioning/dashboards
+---
+# ── TechMind 仪表盘 JSON ─────────────────────────────────
+# 注意: JSON 内容嵌在 YAML 块标量中，缩进必须对齐
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: techmind
+data:
+  techmind.json: >-
+    {
+      "title": "TechMind 监控",
+      "uid": "techmind-main",
+      "timezone": "browser",
+      "schemaVersion": 38,
+      "refresh": "30s",
+      "time": {"from": "now-1h", "to": "now"},
+      "panels": [
+        {"id":1,"title":"HTTP 请求速率 (req/s)","type":"timeseries",
+         "gridPos":{"x":0,"y":0,"w":8,"h":8},
+         "targets":[{"expr":"sum(rate(http_requests_total[1m]))","legendFormat":"请求速率","datasource":"Prometheus"}],
+         "fieldConfig":{"defaults":{"unit":"reqps"}}},
+        {"id":2,"title":"5xx 错误率","type":"timeseries",
+         "gridPos":{"x":8,"y":0,"w":8,"h":8},
+         "targets":[{"expr":"sum(rate(http_errors_total[1m])) / sum(rate(http_requests_total[1m]))","legendFormat":"错误率","datasource":"Prometheus"}],
+         "fieldConfig":{"defaults":{"unit":"percentunit","thresholds":{"steps":[{"color":"green","value":null},{"color":"yellow","value":0.01},{"color":"red","value":0.05}]}}}},
+        {"id":3,"title":"P95 响应延迟","type":"timeseries",
+         "gridPos":{"x":16,"y":0,"w":8,"h":8},
+         "targets":[{"expr":"histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"P95","datasource":"Prometheus"}],
+         "fieldConfig":{"defaults":{"unit":"s","thresholds":{"steps":[{"color":"green","value":null},{"color":"yellow","value":0.5},{"color":"red","value":1.0}]}}}},
+        {"id":4,"title":"慢请求速率 (req/s)","type":"timeseries",
+         "gridPos":{"x":0,"y":8,"w":8,"h":8},
+         "targets":[{"expr":"sum(rate(slow_requests_total[1m]))","legendFormat":"慢请求","datasource":"Prometheus"}],
+         "fieldConfig":{"defaults":{"unit":"reqps"}}},
+        {"id":5,"title":"Redis Stream 队列积压","type":"timeseries",
+         "gridPos":{"x":8,"y":8,"w":8,"h":8},
+         "targets":[{"expr":"redis_stream_pending_total","legendFormat":"{{stream}} / {{group}}","datasource":"Prometheus"}],
+         "fieldConfig":{"defaults":{"unit":"short","thresholds":{"steps":[{"color":"green","value":null},{"color":"yellow","value":50},{"color":"red","value":100}]}}}},
+        {"id":6,"title":"AI 调用速率","type":"timeseries",
+         "gridPos":{"x":16,"y":8,"w":8,"h":8},
+         "targets":[
+           {"expr":"sum(rate(ai_calls_total{status=\"ok\"}[1m]))","legendFormat":"成功","datasource":"Prometheus"},
+           {"expr":"sum(rate(ai_calls_total{status=\"failed\"}[1m]))","legendFormat":"失败","datasource":"Prometheus"}
+         ],
+         "fieldConfig":{"defaults":{"unit":"reqps"}}},
+        {"id":7,"title":"AI 调用 P95 延迟","type":"timeseries",
+         "gridPos":{"x":0,"y":16,"w":8,"h":8},
+         "targets":[{"expr":"histogram_quantile(0.95, sum(rate(ai_call_duration_seconds_bucket[5m])) by (le, kind))","legendFormat":"{{kind}} P95","datasource":"Prometheus"}],
+         "fieldConfig":{"defaults":{"unit":"s"}}},
+        {"id":8,"title":"Worker 任务处理量","type":"timeseries",
+         "gridPos":{"x":8,"y":16,"w":8,"h":8},
+         "targets":[
+           {"expr":"sum(rate(worker_tasks_total{status=\"success\"}[1m])) by (task_type)","legendFormat":"成功 {{task_type}}","datasource":"Prometheus"},
+           {"expr":"sum(rate(worker_tasks_total{status=\"failed\"}[1m])) by (task_type)","legendFormat":"失败 {{task_type}}","datasource":"Prometheus"}
+         ],
+         "fieldConfig":{"defaults":{"unit":"reqps"}}},
+        {"id":9,"title":"Milvus 搜索 P95 延迟","type":"timeseries",
+         "gridPos":{"x":16,"y":16,"w":8,"h":8},
+         "targets":[{"expr":"histogram_quantile(0.95, rate(milvus_search_duration_seconds_bucket[5m]))","legendFormat":"Milvus P95","datasource":"Prometheus"}],
+         "fieldConfig":{"defaults":{"unit":"s","thresholds":{"steps":[{"color":"green","value":null},{"color":"yellow","value":0.3},{"color":"red","value":0.5}]}}}}
+      ]
+    }
+---
+# ── Deployment ───────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: techmind
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.2.0
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_DEFAULT_LOCALE
+              value: "zh-Hans"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: "Admin"
+            - name: GF_AUTH_DISABLE_LOGIN_FORM
+              value: "true"
+            - name: GF_SECURITY_ALLOW_EMBEDDING
+              value: "true"
+            - name: GF_USERS_DEFAULT_THEME
+              value: "dark"
+            - name: GF_SERVER_ROOT_URL
+              value: "http://localhost:30300"
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboard-json
+              mountPath: /etc/grafana/provisioning/dashboards/techmind.json
+              subPath: techmind.json
+            - name: storage
+              mountPath: /var/lib/grafana
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+      volumes:
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: dashboard-provider
+          configMap:
+            name: grafana-dashboard-provider
+        - name: dashboard-json
+          configMap:
+            name: grafana-dashboards
+        - name: storage
+          emptyDir: {}
+---
+# ── Service ──────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: techmind
+spec:
+  type: NodePort
+  selector:
+    app: grafana
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 30300
