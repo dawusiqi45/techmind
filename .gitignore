@@ -25,4 +25,7 @@ Thumbs.db
 .codegraph/
 
 # Internal dev docs (personal progress tracking)
-docs/
+docs/*
+!docs/architecture.md
+!docs/项目范围.md
+!docs/operations.md

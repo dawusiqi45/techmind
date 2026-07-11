@@ -1,12 +1,12 @@
 # TechMind
 
-TechMind 是一个基于 Go/Gin 的技术论坛与云原生智能可观测平台。系统以技术论坛作为真实业务场景，支持文章发布、评论互动、热榜排行、关键词/语义搜索和搜索结果 AI 总结；后台围绕论坛业务构建可观测闭环，采集 HTTP 延迟、错误率、慢请求、缓存命中率、Redis Stream 积压、Milvus 检索耗时和 AI 调用状态。系统接入 Prometheus 和 Alertmanager，实现告警中心、告警去重、Robusta 式告警增强，并参考 HolmesGPT 设计 SRE Agent，通过 MCP 只读工具和 Runbook RAG 聚合指标、日志、队列、数据库、K8s 事件和历史故障，生成结构化诊断报告。
+TechMind 是一个基于 Go/Gin 的技术论坛与云原生智能可观测平台。系统以技术论坛作为真实业务场景，支持文章发布、评论互动、热榜排行、关键词/语义搜索和搜索结果 AI 总结；后台围绕论坛业务构建可观测闭环，采集 HTTP 延迟、错误率、慢请求、缓存命中率、Redis Stream 积压、Milvus 检索耗时和 AI 调用状态。系统接入 Prometheus 和 Alertmanager，实现告警中心、告警去重、Robusta 式告警增强，并参考 HolmesGPT 设计 SRE Agent，通过 MCP 只读工具和 Runbook RAG 聚合指标、错误事件、队列、部署变更和历史故障，生成结构化诊断报告。
 
 ## 技术栈
 
 | 类型 | 技术 | 用途 |
 |---|---|---|
-| 语言 | Go 1.24+ | 后端主语言 |
+| 语言 | Go 1.25 | 后端主语言 |
 | Web 框架 | Gin | HTTP API、Middleware、路由 |
 | 配置 | Viper | YAML 配置、环境变量覆盖 |
 | 日志 | Zap + Lumberjack | 结构化日志和日志切割 |
@@ -18,7 +18,7 @@ TechMind 是一个基于 Go/Gin 的技术论坛与云原生智能可观测平台
 | Embedding | DashScope text-embedding-v4 | 文章和 Runbook 向量化 |
 | 指标 | Prometheus | HTTP、缓存、队列、AI、Milvus 指标 |
 | 告警 | Alertmanager | 告警推送和路由 |
-| K8s | client-go | Pod/Deployment/Event 查询 |
+| K8s | Helm + kind | 本地集群部署、服务暴露、HPA 验证；client-go 查询为后续扩展 |
 | 部署 | Docker Compose + Helm | 本地演示和 K8s 部署 |
 
 ## 项目结构
@@ -43,7 +43,7 @@ TechMind/
 │   ├── middleware/             Gin 中间件
 │   ├── model/                  数据模型
 │   └── pkg/                    通用包（jwt/snowflake/response/logger/settings）
-├── frontend/                   React 18 + Vite + TypeScript 前端
+├── frontend/                   React 19 + Vite + TypeScript 前端
 │   ├── src/
 │   │   ├── api/                Axios API 模块（9个）
 │   │   ├── store/              Zustand 状态管理（auth/theme）
@@ -69,10 +69,11 @@ TechMind/
 │   │   └── values-kind.yaml        Helm 专用配置
 │   └── prometheus/                 Prometheus + Alertmanager 配置
 ├── scripts/
-│   ├── sql/init.sql            数据库初始化（15张表）
+│   ├── sql/init.sql            数据库初始化（20张表）
 │   └── seed_data.go            演示数据种子
 ├── docs/                       项目文档
-│   ├── 项目进度.md             完整开发日志（阶段1-13）
+│   ├── architecture.md         架构和 API 文档
+│   ├── operations.md           运维与增量更新手册
 │   └── 项目范围.md             模块边界说明
 └── Dockerfile                  后端多阶段构建（server/worker 两个 target）
 ```
@@ -119,7 +120,7 @@ docker-compose up -d
 | 服务 | 端口 | 说明 |
 |---|---|---|
 | techmind-server | 8080 | API Server |
-| techmind-worker | - | 异步任务 Worker |
+| techmind-worker | 9091 | 异步任务 Worker，暴露 Prometheus metrics |
 | mysql | 3306 | MySQL 8.0 |
 | redis | 6379 | Redis 7 |
 | milvus-standalone | 19530 | Milvus 向量库 |
@@ -205,12 +206,11 @@ Prometheus: http://<虚拟机IP>:30909
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/api/v1/admin/monitor/overview` | 监控总览 |
-| GET | `/api/v1/admin/monitor/endpoints` | 接口性能统计 |
 | GET | `/api/v1/admin/monitor/slow-requests` | 慢请求列表 |
 | GET | `/api/v1/admin/monitor/errors` | 错误事件列表 |
 | GET | `/api/v1/admin/monitor/queues` | Redis Stream 队列状态 |
 | GET | `/api/v1/admin/monitor/ai-calls` | AI 调用观测 |
-| POST | `/api/v1/admin/alerts/webhook` | Alertmanager Webhook |
+| POST | `/api/v1/alerts/webhook` | Alertmanager Webhook（Bearer Token） |
 | GET | `/api/v1/admin/alerts` | 告警列表 |
 | GET | `/api/v1/admin/alerts/:id` | 告警详情 |
 | POST | `/api/v1/admin/alerts/:id/ack` | 确认告警 |
@@ -226,6 +226,32 @@ Prometheus: http://<虚拟机IP>:30909
 | POST | `/api/v1/admin/runbooks` | 新增 Runbook |
 | GET | `/api/v1/admin/runbooks` | Runbook 列表 |
 | POST | `/api/v1/admin/deployment-changes` | 记录部署变更 |
+| GET | `/api/v1/admin/deployment-changes` | 部署变更列表 |
+
+## 使用监控与 SRE Agent
+
+监控后台和 SRE Agent 都在管理员登录后的前端管理台中：进入 `/admin/monitor` 查看慢请求、错误事件、队列与 AI 调用；在侧栏进入 **SRE 诊断 → 手动触发**（`/admin/ops/diagnose`），填写可选的服务名和告警名后提交。任务会写入 `ops_tasks` Redis Stream，由 `techmind-worker` 异步执行；随后在 **SRE 诊断 → 诊断报告**（`/admin/ops/reports`）查看状态、Prometheus 指标证据、根因与处理建议。
+
+Prometheus 用于核实采集是否正常：访问 `http://<虚拟机IP>:30909/targets`，确认 `techmind-server` 和 `techmind-worker` 目标为 **UP**；在 Graph 页面查询 `http_requests_total` 或 `http_request_duration_seconds_count`。访问论坛、搜索和管理端 API 后，这些指标应增长。告警规则满足持续时间后由 Alertmanager 携带内部 Webhook Bearer Token 回调 `/api/v1/alerts/webhook`，并出现在 **告警中心**；也可从单条告警详情直接触发诊断。
+
+### 配置 AI 与 Webhook 密钥
+
+仓库不保存真实 API Key。kind 更新或首次部署前，请在 Ubuntu 终端设置自己的值，并以 Helm Secret 注入：
+
+```bash
+export TECHMIND_LLM_API_KEY='你的 DeepSeek/OpenAI 兼容 API Key'
+export TECHMIND_ALERT_WEBHOOK_TOKEN='随机生成的长令牌'
+
+helm upgrade --install techmind ./deploy/helm/techmind \
+  -n techmind \
+  -f deploy/kind/values-kind.yaml \
+  --set-string secrets.llmApiKey="$TECHMIND_LLM_API_KEY" \
+  --set-string secrets.alertWebhookToken="$TECHMIND_ALERT_WEBHOOK_TOKEN"
+```
+
+同时将 `deploy/kind/alertmanager-config.yaml` 中的 `credentials` 改为同一个 Webhook Token，再执行 `kubectl apply -f deploy/kind/alertmanager-config.yaml` 和 `kubectl rollout restart deployment/alertmanager -n techmind`。生产环境应改用外部 Secret/Vault，而非命令历史或 values 文件。
+
+完整的增量更新、迁移和验收步骤见 [docs/operations.md](docs/operations.md)。
 
 ### 系统
 
@@ -260,8 +286,8 @@ go build ./...
 
 ## 开发进度
 
-详见 [docs/项目进度.md](docs/项目进度.md)（共 13 个阶段，全部完成）。
+当前项目范围见 [docs/项目范围.md](docs/项目范围.md)，架构和 API 见 [docs/architecture.md](docs/architecture.md)，部署运维见 [docs/operations.md](docs/operations.md)。
 
 - **后端**（阶段1-10）：Go/Gin API Server + Worker，论坛业务 + AI + 可观测 + 告警 + SRE Agent。
-- **前端**（阶段11-12）：React 18 + Vite + TypeScript，论坛浅色主题 + 管理后台深色主题，前后端接口已对齐。
+- **前端**（阶段11-12）：React 19 + Vite + TypeScript，论坛浅色主题 + 管理后台深色主题，前后端接口已对齐。
 - **部署**（阶段13）：Docker Compose + Helm Chart + kind 集群一键部署脚本。

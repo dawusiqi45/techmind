@@ -122,6 +122,8 @@ services:
       - TECHMIND_REDIS_ADDR=redis:6379
       - TECHMIND_MILVUS_ADDR=milvus-standalone:19530
       - TECHMIND_LOG_LEVEL=info
+      - TECHMIND_AI_LLM_API_KEY=${TECHMIND_LLM_API_KEY:-}
+      - TECHMIND_ALERT_WEBHOOK_TOKEN=techmind-compose-alert-webhook
     ports:
       - "8080:8080"
     depends_on:
@@ -160,6 +162,8 @@ services:
       - TECHMIND_REDIS_ADDR=redis:6379
       - TECHMIND_MILVUS_ADDR=milvus-standalone:19530
       - TECHMIND_LOG_LEVEL=info
+      - TECHMIND_AI_LLM_API_KEY=${TECHMIND_LLM_API_KEY:-}
+      - TECHMIND_ALERT_WEBHOOK_TOKEN=techmind-compose-alert-webhook
     depends_on:
       mysql:
         condition: service_healthy

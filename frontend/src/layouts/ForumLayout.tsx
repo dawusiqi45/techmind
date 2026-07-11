@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Outlet, useNavigate, Link } from 'react-router-dom'
 import { Input, Avatar, Dropdown } from 'antd'
 import type { MenuProps } from 'antd'
-import { SearchOutlined, EditOutlined, UserOutlined, LogoutOutlined, SettingOutlined, HeartOutlined, StarOutlined } from '@ant-design/icons'
+import { SearchOutlined, EditOutlined, UserOutlined, LogoutOutlined, SettingOutlined, HeartOutlined, StarOutlined, HomeOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/store/auth'
 import { useLoginModal } from '@/store/loginModal'
 import styles from './ForumLayout.module.css'
@@ -64,12 +64,17 @@ export default function ForumLayout() {
   ]
 
   return (
-    <>
+    <div className={styles.forumShell}>
       <header className={`${styles.header} ${scrolled ? styles.scrolled : ''}`}>
         <div className={styles.inner}>
           <Link to="/" className={styles.logo}>
             <span className={styles.logoIcon}>⬡</span>
             TechMind
+          </Link>
+
+          <Link to="/" className={styles.homeLink}>
+            <HomeOutlined />
+            <span>首页</span>
           </Link>
 
           <div
@@ -128,7 +133,6 @@ export default function ForumLayout() {
       <main className={styles.main}>
         <Outlet />
       </main>
-    </>
+    </div>
   )
 }
-

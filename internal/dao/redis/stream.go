@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	StreamAITasks    = "tm:stream:ai_tasks"      // AI 异步任务队列
-	StreamAIDeadLetter = "tm:stream:ai_tasks:dead" // AI 死信队列
-	StreamOpsTasks   = "tm:stream:ops_tasks"     // 诊断任务队列
+	StreamAITasks       = "tm:stream:ai_tasks"       // AI 异步任务队列
+	StreamAIDeadLetter  = "tm:stream:ai_tasks:dead"  // AI 死信队列
+	StreamOpsTasks      = "tm:stream:ops_tasks"      // 诊断任务队列
+	StreamOpsDeadLetter = "tm:stream:ops_tasks:dead" // 诊断任务死信队列
 
 	GroupAIWorker  = "ai_worker_group"
 	GroupOpsWorker = "ops_worker_group"
@@ -44,6 +45,17 @@ func EnqueueDeadLetter(ctx context.Context, payload map[string]interface{}) erro
 	_, err := RDB.XAdd(ctx, &goredis.XAddArgs{
 		Stream: StreamAIDeadLetter,
 		MaxLen: 5000,
+		Approx: true,
+		Values: payload,
+	}).Result()
+	return err
+}
+
+// EnqueueOpsDeadLetter 将多次失败的诊断任务转入独立死信队列，供人工复盘。
+func EnqueueOpsDeadLetter(ctx context.Context, payload map[string]interface{}) error {
+	_, err := RDB.XAdd(ctx, &goredis.XAddArgs{
+		Stream: StreamOpsDeadLetter,
+		MaxLen: 1000,
 		Approx: true,
 		Values: payload,
 	}).Result()

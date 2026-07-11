@@ -19,6 +19,11 @@ scrape_configs:
       - targets: ['techmind-server:8080']
     metrics_path: '/metrics'
     scrape_interval: 5s
+  - job_name: 'techmind-worker'
+    static_configs:
+      - targets: ['techmind-worker:9091']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
 
   - job_name: 'prometheus'
     static_configs:

@@ -2,6 +2,7 @@ package settings
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -19,6 +20,8 @@ type AppConfig struct {
 	JWT       JWTSetting       `mapstructure:"jwt"`
 	Milvus    MilvusSetting    `mapstructure:"milvus"`
 	AI        AISetting        `mapstructure:"ai"`
+	Monitor   MonitorSetting   `mapstructure:"monitor"`
+	Alert     AlertSetting     `mapstructure:"alert"`
 	RateLimit RateLimitSetting `mapstructure:"rateLimit"`
 }
 
@@ -54,8 +57,8 @@ type RedisSetting struct {
 
 type JWTSetting struct {
 	Secret          string `mapstructure:"secret"`
-	AccessExpireMin int    `mapstructure:"accessExpireMin"`  // minutes
-	RefreshExpireH  int    `mapstructure:"refreshExpireH"`   // hours
+	AccessExpireMin int    `mapstructure:"accessExpireMin"` // minutes
+	RefreshExpireH  int    `mapstructure:"refreshExpireH"`  // hours
 }
 
 type MilvusSetting struct {
@@ -80,10 +83,20 @@ type AISetting struct {
 	MaxConcurrency int `mapstructure:"maxConcurrency"` // default 5
 }
 
+// MonitorSetting 定义 Agent 查询 Prometheus 所需的地址。
+type MonitorSetting struct {
+	PrometheusURL string `mapstructure:"prometheusURL"`
+}
+
+// AlertSetting 定义 Alertmanager Webhook 的共享令牌。
+type AlertSetting struct {
+	WebhookToken string `mapstructure:"webhookToken"`
+}
+
 // RateLimitSetting 限流配置
 type RateLimitSetting struct {
-	Enabled      bool `mapstructure:"enabled"`
-	RequestsPerMin int `mapstructure:"requestsPerMin"` // 每分钟允许请求数，默认 60
+	Enabled        bool `mapstructure:"enabled"`
+	RequestsPerMin int  `mapstructure:"requestsPerMin"` // 每分钟允许请求数，默认 60
 }
 
 // Init 从指定路径加载配置文件（YAML），解码到 Conf。
@@ -91,7 +104,27 @@ type RateLimitSetting struct {
 func Init(configPath string) error {
 	v := viper.New()
 	v.SetConfigFile(configPath)
-	v.AutomaticEnv() // 允许环境变量覆盖
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.SetEnvPrefix("TECHMIND")
+	v.AutomaticEnv()
+	for _, key := range []string{
+		"app.mode",
+		"server.addr",
+		"log.level",
+		"mysql.dsn",
+		"redis.addr",
+		"redis.password",
+		"milvus.addr",
+		"jwt.secret",
+		"ai.llmApiKey",
+		"ai.embeddingApiKey",
+		"monitor.prometheusURL",
+		"alert.webhookToken",
+	} {
+		if err := v.BindEnv(key); err != nil {
+			return fmt.Errorf("settings: bind env %q: %w", key, err)
+		}
+	}
 
 	if err := v.ReadInConfig(); err != nil {
 		return fmt.Errorf("settings: read config file %q failed: %w", configPath, err)
@@ -99,5 +132,19 @@ func Init(configPath string) error {
 	if err := v.Unmarshal(Conf); err != nil {
 		return fmt.Errorf("settings: unmarshal config failed: %w", err)
 	}
+	// viper 的 Unmarshal 不保证把环境变量覆盖写回嵌套结构，显式同步所有
+	// 支持环境变量的运行时字段，确保 Docker/Helm 注入一定生效。
+	Conf.App.Mode = v.GetString("app.mode")
+	Conf.Server.Addr = v.GetString("server.addr")
+	Conf.Log.Level = v.GetString("log.level")
+	Conf.MySQL.DSN = v.GetString("mysql.dsn")
+	Conf.Redis.Addr = v.GetString("redis.addr")
+	Conf.Redis.Password = v.GetString("redis.password")
+	Conf.Milvus.Addr = v.GetString("milvus.addr")
+	Conf.JWT.Secret = v.GetString("jwt.secret")
+	Conf.AI.LLMAPIKey = v.GetString("ai.llmApiKey")
+	Conf.AI.EmbeddingAPIKey = v.GetString("ai.embeddingApiKey")
+	Conf.Monitor.PrometheusURL = v.GetString("monitor.prometheusURL")
+	Conf.Alert.WebhookToken = v.GetString("alert.webhookToken")
 	return nil
 }

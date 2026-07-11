@@ -3,6 +3,7 @@ package middleware
 import (
 	"errors"
 
+	mysqlDAO "techmind/internal/dao/mysql"
 	"techmind/internal/pkg/jwt"
 	"techmind/internal/pkg/response"
 
@@ -45,4 +46,25 @@ func GetCurrentUserID(c *gin.Context) (int64, bool) {
 	}
 	uid, ok := val.(int64)
 	return uid, ok
+}
+
+// RequireAdmin 在服务端校验当前用户的管理员角色。前端路由守卫仅用于体验，不能作为安全边界。
+func RequireAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uid, ok := GetCurrentUserID(c)
+		if !ok {
+			response.AbortWithUnauthorized(c)
+			return
+		}
+
+		user, err := mysqlDAO.GetUserByID(uid)
+		if err != nil || user == nil || user.Role != 1 || user.Status != 1 {
+			c.AbortWithStatusJSON(403, response.Response{
+				Code: response.CodeForbidden,
+				Msg:  response.CodeForbidden.Msg(),
+			})
+			return
+		}
+		c.Next()
+	}
 }

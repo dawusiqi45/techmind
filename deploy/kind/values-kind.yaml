@@ -8,6 +8,12 @@ server:
     tag: latest
     pullPolicy: Never
 
+secrets:
+  jwtSecret: "change-me-in-production"
+  llmApiKey: ""
+  embeddingApiKey: ""
+  alertWebhookToken: "techmind-kind-alert-webhook"
+
 worker:
   replicaCount: 1
   image:

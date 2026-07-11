@@ -1,17 +1,27 @@
 package controller
 
 import (
+	"crypto/subtle"
 	"strconv"
+	"strings"
 
 	"techmind/internal/logic"
 	"techmind/internal/pkg/response"
+	"techmind/internal/pkg/settings"
 
 	"github.com/gin-gonic/gin"
 )
 
-// AlertWebhook POST /api/v1/admin/alerts/webhook
+// AlertWebhook POST /api/v1/alerts/webhook
 // 接收 Alertmanager 推送
 func AlertWebhook(c *gin.Context) {
+	expectedToken := settings.Conf.Alert.WebhookToken
+	presentedToken := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
+	if expectedToken == "" || subtle.ConstantTimeCompare([]byte(expectedToken), []byte(presentedToken)) != 1 {
+		response.AbortWithUnauthorized(c)
+		return
+	}
+
 	var payload logic.AlertmanagerPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		response.FailWithMsg(c, response.CodeInvalidParam, err.Error())

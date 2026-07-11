@@ -117,7 +117,7 @@ spec:
             - name: GF_AUTH_ANONYMOUS_ENABLED
               value: "true"
             - name: GF_AUTH_ANONYMOUS_ORG_ROLE
-              value: "Admin"
+              value: "Viewer"
             - name: GF_AUTH_DISABLE_LOGIN_FORM
               value: "true"
             - name: GF_SECURITY_ALLOW_EMBEDDING

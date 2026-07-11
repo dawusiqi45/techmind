@@ -52,12 +52,16 @@ data:
       refreshExpireH: 168
     ai:
       llmBaseURL: "https://api.deepseek.com/v1"
-      llmApiKey: "sk-xxx"
+      llmApiKey: ""
       llmModel: "deepseek-chat"
-      embeddingApiKey: "your-ark-api-key"
+      embeddingApiKey: ""
       embeddingModel: "ep-xxx"
       timeoutSec: 30
       maxConcurrency: 5
+    monitor:
+      prometheusURL: "http://prometheus:9090"
+    alert:
+      webhookToken: ""
     rateLimit:
       enabled: true
       requestsPerMin: 60

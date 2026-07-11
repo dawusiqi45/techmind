@@ -33,7 +33,29 @@ spec:
           resources:
             {{- toYaml .Values.server.resources | nindent 12 }}
           env:
-            {{- toYaml .Values.server.env | nindent 12 }}
+            - name: TECHMIND_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "techmind.fullname" . }}-secret
+                  key: jwt-secret
+            - name: TECHMIND_AI_LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "techmind.fullname" . }}-secret
+                  key: llm-api-key
+            - name: TECHMIND_AI_EMBEDDING_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "techmind.fullname" . }}-secret
+                  key: embedding-api-key
+            - name: TECHMIND_ALERT_WEBHOOK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "techmind.fullname" . }}-secret
+                  key: alert-webhook-token
+            {{- with .Values.server.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           volumeMounts:
             - name: config
               mountPath: /app/config/config.yaml
@@ -68,10 +90,36 @@ spec:
           imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
           command: ["/app/techmind-worker"]
           args: ["-config", "/app/config/config.yaml"]
+          ports:
+            - name: metrics
+              containerPort: 9091
+              protocol: TCP
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
           env:
-            {{- toYaml .Values.worker.env | nindent 12 }}
+            - name: TECHMIND_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "techmind.fullname" . }}-secret
+                  key: jwt-secret
+            - name: TECHMIND_AI_LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "techmind.fullname" . }}-secret
+                  key: llm-api-key
+            - name: TECHMIND_AI_EMBEDDING_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "techmind.fullname" . }}-secret
+                  key: embedding-api-key
+            - name: TECHMIND_ALERT_WEBHOOK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "techmind.fullname" . }}-secret
+                  key: alert-webhook-token
+            {{- with .Values.worker.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           volumeMounts:
             - name: config
               mountPath: /app/config/config.yaml

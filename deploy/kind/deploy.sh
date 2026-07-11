@@ -16,7 +16,7 @@ pull_image_with_fallback() {
 
   for source_image in "$@"; do
     echo "  拉取 ${source_image}"
-    if timeout 180 docker pull "${source_image}"; then
+    if docker pull "${source_image}"; then
       if [ "${source_image}" != "${target_image}" ]; then
         docker tag "${source_image}" "${target_image}"
       fi
@@ -104,21 +104,18 @@ fi
 kubectl apply --validate=false -f "${SCRIPT_DIR}/ingress-nginx-kind.yaml"
 echo "  等待 Ingress Admission Job 完成..."
 kubectl wait --namespace ingress-nginx \
-  --for=condition=complete job/ingress-nginx-admission-create \
-  --timeout=120s
+  --for=condition=complete job/ingress-nginx-admission-create
 kubectl wait --namespace ingress-nginx \
-  --for=condition=complete job/ingress-nginx-admission-patch \
-  --timeout=120s
+  --for=condition=complete job/ingress-nginx-admission-patch
 echo "  等待 Ingress Controller 就绪..."
 kubectl wait --namespace ingress-nginx \
   --for=condition=ready pod \
-  --selector=app.kubernetes.io/component=controller \
-  --timeout=180s
+  --selector=app.kubernetes.io/component=controller
 
 # Metrics Server
 kubectl apply --validate=false -f "${SCRIPT_DIR}/metrics-server.yaml"
 echo "  等待 Metrics Server 就绪..."
-kubectl rollout status deployment/metrics-server -n kube-system --timeout=120s
+kubectl rollout status deployment/metrics-server -n kube-system
 
 # ============================================
 # 3. 构建后端镜像 (server + worker)
@@ -181,9 +178,9 @@ kubectl apply -f "${SCRIPT_DIR}/alertmanager.yaml"
 kubectl apply -f "${SCRIPT_DIR}/grafana.yaml"
 
 echo "  等待 MySQL 就绪 (可能需要 1-2 分钟)..."
-kubectl rollout status statefulset/mysql -n ${NAMESPACE} --timeout=360s
+kubectl rollout status statefulset/mysql -n ${NAMESPACE}
 echo "  等待 Redis 就绪..."
-kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=60s
+kubectl rollout status deployment/redis -n ${NAMESPACE}
 
 # ============================================
 # 7. Helm 部署应用 (server + worker + frontend)
@@ -201,9 +198,9 @@ helm upgrade --install techmind ./deploy/helm/techmind \
 # ============================================
 echo ""
 echo "[8/8] 等待所有 Pod 就绪..."
-kubectl rollout status deployment/techmind-server -n ${NAMESPACE} --timeout=120s
-kubectl rollout status deployment/techmind-worker -n ${NAMESPACE} --timeout=120s
-kubectl rollout status deployment/techmind-frontend -n ${NAMESPACE} --timeout=120s
+kubectl rollout status deployment/techmind-server -n ${NAMESPACE}
+kubectl rollout status deployment/techmind-worker -n ${NAMESPACE}
+kubectl rollout status deployment/techmind-frontend -n ${NAMESPACE}
 
 echo ""
 echo "=========================================="

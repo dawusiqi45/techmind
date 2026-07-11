@@ -10,6 +10,13 @@ image:
   tag: "latest"
   pullPolicy: IfNotPresent
 
+# 仅用于开发演示。生产环境应通过外部 Secret 管理这些值，绝不提交真实 Key。
+secrets:
+  jwtSecret: "change-me-in-production"
+  llmApiKey: ""
+  embeddingApiKey: ""
+  alertWebhookToken: ""
+
 # ========== Server 配置 ==========
 server:
   enabled: true

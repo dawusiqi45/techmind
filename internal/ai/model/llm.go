@@ -24,6 +24,9 @@ var llmModelName string
 
 // InitLLM 初始化 OpenAI 兼容 LLM 客户端（支持 DeepSeek/Doubao）
 func InitLLM(cfg *settings.AISetting) error {
+	if cfg.LLMBaseURL == "" || cfg.LLMAPIKey == "" || cfg.LLMModel == "" {
+		return fmt.Errorf("ai: llm configuration is incomplete")
+	}
 	c, err := einoOpenAI.NewChatModel(context.Background(), &einoOpenAI.ChatModelConfig{
 		BaseURL: cfg.LLMBaseURL,
 		APIKey:  cfg.LLMAPIKey,

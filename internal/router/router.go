@@ -77,9 +77,16 @@ func Setup(mode string) *gin.Engine {
 		public.GET("/search", controller.SearchArticles)
 	}
 
-	// 管理后台路由（需鉴权）
+	// Alertmanager 无法携带用户 JWT，使用独立的 Bearer Webhook 令牌鉴权。
+	webhook := v1.Group("/alerts")
+	{
+		webhook.POST("/webhook", controller.AlertWebhook)
+	}
+
+	// 管理后台路由（需 JWT 和服务端管理员角色校验）
 	admin := v1.Group("/admin")
 	admin.Use(middleware.JWT())
+	admin.Use(middleware.RequireAdmin())
 	{
 		// 监控后台
 		admin.GET("/monitor/overview", controller.MonitorOverview)
@@ -89,7 +96,6 @@ func Setup(mode string) *gin.Engine {
 		admin.GET("/monitor/ai-calls", controller.MonitorAICalls)
 
 		// 告警中心
-		admin.POST("/alerts/webhook", controller.AlertWebhook)
 		admin.GET("/alerts", controller.ListAlerts)
 		admin.GET("/alerts/:id", controller.GetAlertDetail)
 		admin.POST("/alerts/:id/ack", controller.AcknowledgeAlert)

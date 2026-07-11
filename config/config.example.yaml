@@ -35,12 +35,18 @@ milvus:
 
 ai:
   llmBaseURL: "https://api.deepseek.com/v1"
-  llmApiKey: "sk-your-deepseek-key"
+  llmApiKey: "" # 推荐通过 TECHMIND_AI_LLM_API_KEY 环境变量注入
   llmModel: "deepseek-chat"
-  embeddingApiKey: "your-ark-api-key"
+  embeddingApiKey: "" # 推荐通过 TECHMIND_AI_EMBEDDING_API_KEY 环境变量注入
   embeddingModel: "ep-your-endpoint-id"
   timeoutSec: 30
   maxConcurrency: 5
+
+monitor:
+  prometheusURL: "http://127.0.0.1:9090"
+
+alert:
+  webhookToken: "" # 通过 TECHMIND_ALERT_WEBHOOK_TOKEN 注入
 
 rateLimit:
   enabled: true

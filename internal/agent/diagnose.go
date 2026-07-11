@@ -86,6 +86,15 @@ func Diagnose(ctx context.Context, input DiagnoseInput) (int64, error) {
 			changesList = append(changesList, c)
 		}
 	}
+	toolCalls := []string{
+		"slow_request_query",
+		"error_event_query",
+		"redis_stream_stats",
+		"alert_query",
+		"prometheus_query",
+		"recent_changes_query",
+		"incident_rag_search",
+	}
 
 	// 7. 更新报告完整内容
 	finalReport := &model.OpsReport{
@@ -98,7 +107,7 @@ func Diagnose(ctx context.Context, input DiagnoseInput) (int64, error) {
 		Impact:         summaryResult.Impact,
 		Suggestions:    toJSONSlice(summaryResult.Suggestions),
 		RelatedChanges: changesList,
-		ToolCalls:      toJSONSlice(summaryResult.ToolCalls),
+		ToolCalls:      toJSONSlice(append(toolCalls, summaryResult.ToolCalls...)),
 		Status:         status,
 	}
 	if err := mysqlDAO.DB.Save(finalReport).Error; err != nil {
@@ -117,6 +126,7 @@ func collectEvidence(ctx context.Context, input DiagnoseInput) mcp.Evidence {
 	merge(combined, mcp.ErrorEventQuery(ctx, "", 10))
 	merge(combined, mcp.RedisStreamStats(ctx))
 	merge(combined, mcp.AlertQuery(ctx, 5))
+	merge(combined, mcp.PrometheusSnapshot(ctx, input.AlertName))
 
 	return combined
 }
@@ -130,11 +140,11 @@ func merge(dst, src mcp.Evidence) {
 // identifyWorkflow 根据告警名称匹配内置工作流
 func identifyWorkflow(alertName string) string {
 	workflows := map[string]string{
-		"SearchLatencyHigh":     "SearchLatencyWorkflow",
+		"SearchLatencyHigh":      "SearchLatencyWorkflow",
 		"RedisStreamBacklogHigh": "WorkerBacklogWorkflow",
-		"CacheHitRateLow":       "CacheMissWorkflow",
-		"PodRestartHigh":        "PodRestartWorkflow",
-		"AICallFailureHigh":     "AIFailureWorkflow",
+		"CacheHitRateLow":        "CacheMissWorkflow",
+		"PodRestartHigh":         "PodRestartWorkflow",
+		"AICallFailureHigh":      "AIFailureWorkflow",
 	}
 	if w, ok := workflows[alertName]; ok {
 		return w

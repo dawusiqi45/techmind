@@ -4,21 +4,24 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"techmind/internal/dao/mysql"
-	"techmind/internal/dao/redis"
-	"techmind/internal/dao/milvus"
 	aiEmbed "techmind/internal/ai/embedding"
 	aiModel "techmind/internal/ai/model"
-	"techmind/internal/pkg/logger"
+	"techmind/internal/dao/milvus"
+	"techmind/internal/dao/mysql"
+	"techmind/internal/dao/redis"
 	"techmind/internal/monitor"
+	"techmind/internal/pkg/logger"
 	"techmind/internal/pkg/settings"
 	"techmind/internal/pkg/snowflake"
 	"techmind/internal/worker"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
 
@@ -88,10 +91,21 @@ func run(configPath string) error {
 
 	// 创建 Ops Worker（诊断任务）
 	opsWorker := worker.NewOpsWorker("ops-worker-1")
+	metricsServer := &http.Server{Addr: ":9091", Handler: promhttp.Handler()}
+	go func() {
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			zap.L().Warn("worker metrics server stopped", zap.Error(err))
+		}
+	}()
 
 	// 9. 启动 Worker（可取消的 context）
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		_ = metricsServer.Shutdown(shutdownCtx)
+	}()
 
 	errCh := make(chan error, 2)
 	go func() {

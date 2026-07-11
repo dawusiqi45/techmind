@@ -1,4 +1,18 @@
 .layout {
+  /* 管理台独立深色变量，避免论坛浅色主题污染监控页面。 */
+  --bg:          #0a0a0f;
+  --surface-1:   #111118;
+  --surface-2:   #18181f;
+  --border:      #1e1e28;
+  --text-1:      #f0f0f5;
+  --text-2:      #8b8b9e;
+  --text-3:      #4a4a5c;
+  --accent:      #6366f1;
+  --accent-glow: rgba(99, 102, 241, 0.15);
+  --accent-dim:  rgba(99, 102, 241, 0.08);
+  --green:       #22c55e;
+  --red:         #ef4444;
+  --yellow:      #f59e0b;
   display: flex;
   min-height: 100vh;
   background: var(--bg);

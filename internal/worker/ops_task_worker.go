@@ -8,6 +8,7 @@ import (
 
 	"techmind/internal/agent"
 	redisDAO "techmind/internal/dao/redis"
+	"techmind/internal/monitor"
 
 	goredis "github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
@@ -17,6 +18,8 @@ import (
 type OpsWorker struct {
 	consumer string
 }
+
+const maxOpsRetry = 3
 
 // NewOpsWorker 创建 OpsWorker
 func NewOpsWorker(consumer string) *OpsWorker {
@@ -70,6 +73,26 @@ func (w *OpsWorker) processOps(ctx context.Context, msg goredis.XMessage) {
 		zap.L().Warn("ops worker: diagnose failed",
 			zap.String("msg_id", msg.ID),
 			zap.Error(err))
+		monitor.IncWorkerTask("ops_diagnose", "failed")
+
+		retryCount := parseRetry(msg.Values["retry_count"])
+		if retryCount >= maxOpsRetry {
+			deadPayload := copyValues(msg.Values)
+			deadPayload["fail_reason"] = err.Error()
+			deadPayload["original_msg_id"] = msg.ID
+			_ = redisDAO.EnqueueOpsDeadLetter(ctx, deadPayload)
+			monitor.IncWorkerTask("ops_diagnose", "dead")
+		} else {
+			retryPayload := copyValues(msg.Values)
+			retryPayload["retry_count"] = strconv.Itoa(retryCount + 1)
+			if _, enqueueErr := redisDAO.EnqueueOpsTask(ctx, retryPayload); enqueueErr != nil {
+				zap.L().Error("ops worker: re-enqueue failed", zap.Error(enqueueErr))
+			} else {
+				monitor.IncWorkerTask("ops_diagnose", "retry")
+			}
+		}
+	} else {
+		monitor.IncWorkerTask("ops_diagnose", "success")
 	}
 	_ = redisDAO.AckOpsTask(ctx, msg.ID)
 }
@@ -81,6 +104,7 @@ func EnqueueDiagnoseTask(ctx context.Context, alertID int64, triggerType, servic
 		"trigger_type": triggerType,
 		"service":      service,
 		"alert_name":   alertName,
+		"retry_count":  "0",
 	}
 	_, err := redisDAO.EnqueueOpsTask(ctx, payload)
 	return err

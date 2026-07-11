@@ -21,13 +21,21 @@ export default function OpsDiagnose() {
   }
 
   return (
-    <Card title="手动触发诊断" style={{ maxWidth: 600, background: '#161b22', border: '1px solid #30363d' }} headStyle={{ color: '#e6edf3', borderBottom: '1px solid #30363d' }}>
+    <Card title="SRE Agent 手动诊断" style={{ maxWidth: 600, background: '#161b22', border: '1px solid #30363d' }} headStyle={{ color: '#e6edf3', borderBottom: '1px solid #30363d' }}>
+      <div style={{ marginBottom: 24, color: '#8b949e', lineHeight: 1.7 }}>
+        <p>Agent 会只读采集慢请求、错误事件、Redis Stream、告警、近期变更和 Runbook，再生成诊断报告；它不会修改集群或业务数据。</p>
+        <ol style={{ margin: '10px 0 0', paddingLeft: 20 }}>
+          <li>填写当前异常对应的告警名称或服务名。</li>
+          <li>点击“触发诊断”，任务将交给 Worker 异步处理。</li>
+          <li>在“诊断报告”中查看状态与最终结论。</li>
+        </ol>
+      </div>
       <Form layout="vertical" onFinish={handleSubmit}>
         <Form.Item name="alert_name" label={<span style={{ color: '#8b949e' }}>告警名称</span>}>
-          <Input placeholder="例如: APIHighErrorRate" style={{ background: '#0f1117', color: '#e6edf3', borderColor: '#30363d' }} />
+          <Input placeholder="例如: SearchLatencyHigh（留空则执行通用诊断）" style={{ background: '#0f1117', color: '#e6edf3', borderColor: '#30363d' }} />
         </Form.Item>
         <Form.Item name="service" label={<span style={{ color: '#8b949e' }}>服务名</span>}>
-          <Input placeholder="例如: techmind-server" style={{ background: '#0f1117', color: '#e6edf3', borderColor: '#30363d' }} />
+          <Input placeholder="例如: techmind-server（可选）" style={{ background: '#0f1117', color: '#e6edf3', borderColor: '#30363d' }} />
         </Form.Item>
         <Button type="primary" htmlType="submit" loading={loading}>触发诊断</Button>
       </Form>
