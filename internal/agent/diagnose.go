@@ -25,6 +25,7 @@ type DiagnoseInput struct {
 // Diagnose 执行诊断并将报告写入数据库，返回报告 ID
 func Diagnose(ctx context.Context, input DiagnoseInput) (int64, error) {
 	start := time.Now()
+	defer func() { monitor.ObserveOpsDiagnose(time.Since(start)) }()
 	incidentID := int64(0)
 	if input.AlertID > 0 {
 		incident, err := mysqlDAO.EnsureOpenIncidentForAlert(input.AlertID)

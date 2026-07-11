@@ -52,6 +52,28 @@ func UpsertArticleTags(articleID int64, tagIDs []int64, source string) error {
 	return DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&tags).Error
 }
 
+// ReplaceArticleTags 用给定集合替换文章某一来源的标签，其他来源（如 AI）保持不变。
+func ReplaceArticleTags(articleID int64, tagIDs []int64, source string) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		return replaceArticleTags(tx, articleID, tagIDs, source)
+	})
+}
+
+func replaceArticleTags(tx *gorm.DB, articleID int64, tagIDs []int64, source string) error {
+	if err := tx.Where("article_id = ? AND source = ?", articleID, source).
+		Delete(&model.ArticleTag{}).Error; err != nil {
+		return err
+	}
+	if len(tagIDs) == 0 {
+		return nil
+	}
+	tags := make([]model.ArticleTag, 0, len(tagIDs))
+	for _, tagID := range tagIDs {
+		tags = append(tags, model.ArticleTag{ArticleID: articleID, TagID: tagID, Source: source})
+	}
+	return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&tags).Error
+}
+
 // ListHotTags 按热度分倒序返回 topN 标签
 func ListHotTags(topN int) ([]*model.Tag, error) {
 	var tags []*model.Tag

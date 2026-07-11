@@ -7,11 +7,11 @@ import (
 	"math"
 	"time"
 
-	mysqlDAO "techmind/internal/dao/mysql"
-	milvusDAO "techmind/internal/dao/milvus"
-	redisDAO "techmind/internal/dao/redis"
 	aiEmbed "techmind/internal/ai/embedding"
 	aiSkill "techmind/internal/ai/prompt"
+	milvusDAO "techmind/internal/dao/milvus"
+	mysqlDAO "techmind/internal/dao/mysql"
+	redisDAO "techmind/internal/dao/redis"
 	"techmind/internal/model"
 	"techmind/internal/monitor"
 	"techmind/internal/pkg/settings"
@@ -35,6 +35,7 @@ type UpdateArticleInput struct {
 	Title   string
 	Content string
 	Cover   string
+	Tags    []string
 }
 
 // CreateArticle 发布文章
@@ -47,22 +48,15 @@ func CreateArticle(ctx context.Context, authorID int64, in *CreateArticleInput) 
 		Cover:    in.Cover,
 		Status:   1,
 	}
-	if err := mysqlDAO.CreateArticle(a); err != nil {
+	tagIDs, err := resolveManualTagIDs(in.Tags)
+	if err != nil {
+		return 0, fmt.Errorf("resolve article tags: %w", err)
+	}
+	if err := mysqlDAO.CreateArticleWithTags(a, tagIDs); err != nil {
 		return 0, fmt.Errorf("create article: %w", err)
 	}
-
-	// 处理手动标签
-	if len(in.Tags) > 0 {
-		var tagIDs []int64
-		for _, name := range in.Tags {
-			tagID, err := mysqlDAO.GetOrCreateTag(name, snowflake.GenID())
-			if err != nil {
-				continue
-			}
-			tagIDs = append(tagIDs, tagID)
-			_ = redisDAO.UpdateTagHotScore(ctx, name, 1)
-		}
-		_ = mysqlDAO.UpsertArticleTags(a.ID, tagIDs, "manual")
+	for _, name := range in.Tags {
+		_ = redisDAO.UpdateTagHotScore(ctx, name, 1)
 	}
 
 	// 异步任务：摘要、AI 标签、向量索引（失败不影响发布）
@@ -141,7 +135,11 @@ func UpdateArticle(ctx context.Context, articleID, userID int64, in *UpdateArtic
 	if a.AuthorID != userID {
 		return ErrForbidden
 	}
-	if err := mysqlDAO.UpdateArticle(articleID, in.Title, in.Content, in.Cover); err != nil {
+	tagIDs, err := resolveManualTagIDs(in.Tags)
+	if err != nil {
+		return fmt.Errorf("resolve article tags: %w", err)
+	}
+	if err := mysqlDAO.UpdateArticleWithTags(articleID, in.Title, in.Content, in.Cover, tagIDs); err != nil {
 		return err
 	}
 	_ = redisDAO.DelArticleCache(ctx, articleID)
@@ -176,51 +174,44 @@ func DeleteArticle(ctx context.Context, articleID, userID int64) error {
 
 // LikeArticle 点赞/取消点赞，返回当前是否已点赞
 func LikeArticle(ctx context.Context, articleID, userID int64) (bool, error) {
-	liked, err := mysqlDAO.ExistsUserLike(userID, articleID)
+	liked, err := mysqlDAO.ToggleUserLike(userID, articleID)
 	if err != nil {
 		return false, err
 	}
-
-	if liked {
-		if err := mysqlDAO.DeleteUserLike(userID, articleID); err != nil {
-			return false, err
-		}
-		_ = mysqlDAO.IncrLikeCount(articleID, -1)
-		go refreshHotScore(context.Background(), articleID)
-		return false, nil
-	}
-
-	if err := mysqlDAO.CreateUserLike(userID, articleID); err != nil {
-		return false, err
-	}
-	_ = mysqlDAO.IncrLikeCount(articleID, 1)
+	_ = redisDAO.DelArticleCache(ctx, articleID)
 	go refreshHotScore(context.Background(), articleID)
-	return true, nil
+	return liked, nil
 }
 
 // FavoriteArticle 收藏/取消收藏，返回当前是否已收藏
 func FavoriteArticle(ctx context.Context, articleID, userID int64) (bool, error) {
-	exists, err := mysqlDAO.ExistsFavorite(userID, articleID)
+	favorited, err := mysqlDAO.ToggleFavorite(userID, articleID)
 	if err != nil {
 		return false, err
 	}
-
-	if exists {
-		if err := mysqlDAO.DeleteFavorite(userID, articleID); err != nil {
-			return false, err
-		}
-		_ = mysqlDAO.IncrFavoriteCount(articleID, -1)
-		go refreshHotScore(context.Background(), articleID)
-		return false, nil
-	}
-
-	f := &model.Favorite{UserID: userID, ArticleID: articleID}
-	if err := mysqlDAO.CreateFavorite(f); err != nil {
-		return false, err
-	}
-	_ = mysqlDAO.IncrFavoriteCount(articleID, 1)
+	_ = redisDAO.DelArticleCache(ctx, articleID)
 	go refreshHotScore(context.Background(), articleID)
-	return true, nil
+	return favorited, nil
+}
+
+func resolveManualTagIDs(names []string) ([]int64, error) {
+	tagIDs := make([]int64, 0, len(names))
+	seen := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		tagID, err := mysqlDAO.GetOrCreateTag(name, snowflake.GenID())
+		if err != nil {
+			return nil, err
+		}
+		tagIDs = append(tagIDs, tagID)
+	}
+	return tagIDs, nil
 }
 
 // SearchResult 搜索结果，含文章列表和 AI 总结

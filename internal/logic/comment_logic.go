@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	mysqlDAO "techmind/internal/dao/mysql"
+	redisDAO "techmind/internal/dao/redis"
 	"techmind/internal/model"
 	"techmind/internal/pkg/snowflake"
 )
@@ -15,7 +16,7 @@ var ErrCommentNotExist = errors.New("comment not found")
 // CreateCommentInput 发布评论参数
 type CreateCommentInput struct {
 	ArticleID int64
-	ParentID  int64  // 0=一级评论
+	ParentID  int64 // 0=一级评论
 	Content   string
 }
 
@@ -30,6 +31,9 @@ func CreateComment(authorID int64, in *CreateCommentInput) (int64, error) {
 		if parent == nil {
 			return 0, ErrCommentNotExist
 		}
+		if parent.ArticleID != in.ArticleID {
+			return 0, ErrCommentNotExist
+		}
 	}
 
 	c := &model.Comment{
@@ -40,11 +44,10 @@ func CreateComment(authorID int64, in *CreateCommentInput) (int64, error) {
 		Content:   in.Content,
 		Status:    1,
 	}
-	if err := mysqlDAO.CreateComment(c); err != nil {
+	if err := mysqlDAO.CreateCommentWithCount(c); err != nil {
 		return 0, err
 	}
-
-	_ = mysqlDAO.IncrCommentCount(in.ArticleID, 1)
+	_ = redisDAO.DelArticleCache(context.Background(), in.ArticleID)
 	go refreshHotScore(context.Background(), in.ArticleID)
 	return c.ID, nil
 }

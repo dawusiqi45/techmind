@@ -6,11 +6,28 @@ import (
 	"techmind/internal/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // CreateComment 插入评论
 func CreateComment(c *model.Comment) error {
 	return DB.Create(c).Error
+}
+
+// CreateCommentWithCount 在同一事务内创建评论并更新文章评论数。
+func CreateCommentWithCount(c *model.Comment) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var article model.Article
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND status = 1", c.ArticleID).First(&article).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(c).Error; err != nil {
+			return err
+		}
+		return tx.Model(&model.Article{}).Where("id = ?", c.ArticleID).
+			UpdateColumn("comment_count", gorm.Expr("comment_count + 1")).Error
+	})
 }
 
 // GetCommentByID 按 ID 查询，未找到返回 nil

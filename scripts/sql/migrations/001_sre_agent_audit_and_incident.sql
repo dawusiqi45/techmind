@@ -1,6 +1,27 @@
 -- TechMind 现有 MySQL PVC 的兼容升级脚本。
 -- 可重复执行：为诊断证据链补表，并把诊断报告关联到 Incident。
 
+CREATE TABLE IF NOT EXISTS `incident` (
+    `id`         BIGINT       NOT NULL,
+    `title`      VARCHAR(255) NOT NULL,
+    `status`     VARCHAR(16)  NOT NULL DEFAULT 'open',
+    `severity`   VARCHAR(32)  NOT NULL DEFAULT 'warning',
+    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SRE 故障事件';
+
+CREATE TABLE IF NOT EXISTS `incident_alert` (
+    `id`          BIGINT   NOT NULL AUTO_INCREMENT,
+    `incident_id` BIGINT   NOT NULL,
+    `alert_id`    BIGINT   NOT NULL,
+    `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_incident_alert` (`incident_id`, `alert_id`),
+    KEY `idx_alert_id` (`alert_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='故障事件与告警关联';
+
 CREATE TABLE IF NOT EXISTS `ops_tool_call` (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT,
     `report_id`   BIGINT       NOT NULL,

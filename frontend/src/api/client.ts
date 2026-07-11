@@ -13,7 +13,10 @@ apiClient.interceptors.request.use((config) => {
 })
 
 let refreshing = false
-let queue: Array<(token: string) => void> = []
+let queue: Array<{
+  resolve: (token: string) => void
+  reject: (error: unknown) => void
+}> = []
 
 apiClient.interceptors.response.use(
   (res) => res,
@@ -23,10 +26,13 @@ apiClient.interceptors.response.use(
       return Promise.reject(err)
     }
     if (refreshing) {
-      return new Promise((resolve) => {
-        queue.push((token) => {
-          original.headers.Authorization = `Bearer ${token}`
-          resolve(apiClient(original))
+      return new Promise((resolve, reject) => {
+        queue.push({
+          resolve: (token) => {
+            original.headers.Authorization = `Bearer ${token}`
+            resolve(apiClient(original))
+          },
+          reject,
         })
       })
     }
@@ -38,13 +44,15 @@ apiClient.interceptors.response.use(
       })
       const newToken = data.data.access_token
       tokenUtil.setAccess(newToken)
-      queue.forEach((cb) => cb(newToken))
+      queue.forEach((item) => item.resolve(newToken))
       queue = []
       original.headers.Authorization = `Bearer ${newToken}`
       return apiClient(original)
-    } catch {
+    } catch (refreshError) {
       tokenUtil.clear()
-      return Promise.reject(err)
+      queue.forEach((item) => item.reject(refreshError))
+      queue = []
+      return Promise.reject(refreshError)
     } finally {
       refreshing = false
     }

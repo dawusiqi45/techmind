@@ -16,6 +16,16 @@ func CreateArticle(a *model.Article) error {
 	return DB.Create(a).Error
 }
 
+// CreateArticleWithTags 在同一事务内创建文章及其手动标签。
+func CreateArticleWithTags(a *model.Article, tagIDs []int64) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(a).Error; err != nil {
+			return err
+		}
+		return replaceArticleTags(tx, a.ID, tagIDs, "manual")
+	})
+}
+
 // GetArticleByID 按 ID 查询文章（含作者名），未找到返回 nil
 func GetArticleByID(id int64) (*model.ArticleDetail, error) {
 	var a model.ArticleDetail
@@ -109,6 +119,19 @@ func UpdateArticle(id int64, title, content, cover string) error {
 			"cover":        cover,
 			"index_status": 0,
 		}).Error
+}
+
+// UpdateArticleWithTags 在同一事务内更新文章正文和手动标签。
+func UpdateArticleWithTags(id int64, title, content, cover string, tagIDs []int64) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.Article{}).Where("id = ?", id).
+			Updates(map[string]interface{}{
+				"title": title, "content": content, "cover": cover, "index_status": 0,
+			}).Error; err != nil {
+			return err
+		}
+		return replaceArticleTags(tx, id, tagIDs, "manual")
+	})
 }
 
 // SoftDeleteArticle 软删除（status = -1），仅允许作者操作

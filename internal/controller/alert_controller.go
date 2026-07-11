@@ -2,6 +2,7 @@ package controller
 
 import (
 	"crypto/subtle"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -28,7 +29,10 @@ func AlertWebhook(c *gin.Context) {
 		return
 	}
 	if err := logic.ReceiveAlertWebhook(&payload); err != nil {
-		response.Fail(c, response.CodeServerError)
+		c.JSON(http.StatusInternalServerError, response.Response{
+			Code: response.CodeServerError,
+			Msg:  response.CodeServerError.Msg(),
+		})
 		return
 	}
 	response.OK(c, nil)

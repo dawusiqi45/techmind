@@ -85,12 +85,17 @@ func run(configPath string) error {
 		zap.L().Warn("Embedding init failed", zap.Error(err))
 	}
 
-	// 8. 创建 AI Worker 并注册处理器
-	aiWorker := worker.NewAIWorker("ai-worker-1")
+	// 8. 每个进程使用唯一消费者名，支持多副本和 pending 消息接管。
+	hostname, err := os.Hostname()
+	if err != nil || hostname == "" {
+		hostname = "unknown"
+	}
+	consumerSuffix := fmt.Sprintf("%s-%d", hostname, os.Getpid())
+	aiWorker := worker.NewAIWorker("ai-worker-" + consumerSuffix)
 	worker.RegisterAIHandlers(aiWorker)
 
 	// 创建 Ops Worker（诊断任务）
-	opsWorker := worker.NewOpsWorker("ops-worker-1")
+	opsWorker := worker.NewOpsWorker("ops-worker-" + consumerSuffix)
 	metricsServer := &http.Server{Addr: ":9091", Handler: promhttp.Handler()}
 	go func() {
 		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {

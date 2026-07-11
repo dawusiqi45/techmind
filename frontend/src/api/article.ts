@@ -5,9 +5,9 @@ export const articleApi = {
     apiClient.get('/articles', { params }),
   hot: () => apiClient.get('/articles/hot'),
   get: (id: string) => apiClient.get(`/articles/${id}`),
-  create: (data: { title: string; content: string; tag_ids?: number[] }) =>
+  create: (data: { title: string; content: string; tags?: string[] }) =>
     apiClient.post('/articles', data),
-  update: (id: string, data: { title: string; content: string; tag_ids?: number[] }) =>
+  update: (id: string, data: { title: string; content: string; tags?: string[] }) =>
     apiClient.put(`/articles/${id}`, data),
   remove: (id: string) => apiClient.delete(`/articles/${id}`),
   like: (id: string) => apiClient.post(`/articles/${id}/like`),

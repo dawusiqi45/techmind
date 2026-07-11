@@ -21,9 +21,10 @@ type CreateArticleReq struct {
 
 // UpdateArticleReq 编辑文章请求体
 type UpdateArticleReq struct {
-	Title   string `json:"title"   binding:"required,min=1,max=200"`
-	Content string `json:"content" binding:"required,min=1"`
-	Cover   string `json:"cover"   binding:"omitempty"`
+	Title   string   `json:"title"   binding:"required,min=1,max=200"`
+	Content string   `json:"content" binding:"required,min=1"`
+	Cover   string   `json:"cover"   binding:"omitempty"`
+	Tags    []string `json:"tags"`
 }
 
 // CreateArticle POST /api/v1/articles
@@ -120,6 +121,7 @@ func UpdateArticle(c *gin.Context) {
 		Title:   req.Title,
 		Content: req.Content,
 		Cover:   req.Cover,
+		Tags:    req.Tags,
 	})
 	if err != nil {
 		if errors.Is(err, logic.ErrArticleNotExist) {

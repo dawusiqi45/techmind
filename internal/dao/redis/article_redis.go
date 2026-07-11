@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"techmind/internal/model"
+	"techmind/internal/monitor"
 
 	goredis "github.com/redis/go-redis/v9"
 )
@@ -18,10 +19,10 @@ func goredisZ(score float64, articleID int64) goredis.Z {
 }
 
 const (
-	keyArticleDetail = "tm:article:detail:%d"   // String: 文章详情缓存
-	keyArticleHot    = "tm:article:hot"          // ZSet: 全站热榜
-	keyTagHot        = "tm:tag:hot"              // ZSet: 热门标签
-	keyArticleLiked  = "tm:article:liked:%d"     // Set: 点赞防重复
+	keyArticleDetail = "tm:article:detail:%d" // String: 文章详情缓存
+	keyArticleHot    = "tm:article:hot"       // ZSet: 全站热榜
+	keyTagHot        = "tm:tag:hot"           // ZSet: 热门标签
+	keyArticleLiked  = "tm:article:liked:%d"  // Set: 点赞防重复
 	articleCacheTTL  = 10 * time.Minute
 )
 
@@ -42,12 +43,14 @@ func GetArticleCache(ctx context.Context, articleID int64) (*model.ArticleDetail
 	key := fmt.Sprintf(keyArticleDetail, articleID)
 	data, err := RDB.Get(ctx, key).Bytes()
 	if err != nil {
+		monitor.IncCacheMiss()
 		return nil, nil // 未命中视为缓存 miss
 	}
 	a := &model.ArticleDetail{}
 	if err := json.Unmarshal(data, a); err != nil {
 		return nil, err
 	}
+	monitor.IncCacheHit()
 	return a, nil
 }
 

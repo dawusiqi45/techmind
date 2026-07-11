@@ -11,14 +11,14 @@ import (
 	"syscall"
 	"time"
 
-	"techmind/internal/dao/mysql"
-	"techmind/internal/dao/redis"
-	"techmind/internal/dao/milvus"
 	aiEmbed "techmind/internal/ai/embedding"
 	aiModel "techmind/internal/ai/model"
+	"techmind/internal/dao/milvus"
+	"techmind/internal/dao/mysql"
+	"techmind/internal/dao/redis"
+	"techmind/internal/monitor"
 	"techmind/internal/pkg/jwt"
 	"techmind/internal/pkg/logger"
-	"techmind/internal/monitor"
 	"techmind/internal/pkg/settings"
 	"techmind/internal/pkg/snowflake"
 	"techmind/internal/router"
@@ -99,17 +99,23 @@ func run(configPath string) error {
 		Handler: engine,
 	}
 
+	serverErr := make(chan error, 1)
 	go func() {
 		zap.L().Info("HTTP server listening", zap.String("addr", cfg.Server.Addr))
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			zap.L().Error("ListenAndServe failed", zap.Error(err))
+			serverErr <- err
 		}
 	}()
 
 	// 等待 SIGINT / SIGTERM
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	select {
+	case <-quit:
+	case err := <-serverErr:
+		return fmt.Errorf("listen and serve: %w", err)
+	}
 
 	zap.L().Info("shutting down server...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

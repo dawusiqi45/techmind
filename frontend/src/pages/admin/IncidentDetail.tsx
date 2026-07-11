@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button, Card, Descriptions, List, Popconfirm, Spin, Tag, message } from 'antd'
 import { useParams } from 'react-router-dom'
 import { incidentApi } from '@/api/incident'
@@ -8,8 +8,8 @@ export default function IncidentDetail() {
   const { id } = useParams()
   const [data, setData] = useState<any>(null)
 
-  const load = () => incidentApi.get(id!).then((res) => setData(res.data.data))
-  useEffect(() => { load() }, [id])
+  const load = useCallback(() => incidentApi.get(id!).then((res) => setData(res.data.data)), [id])
+  useEffect(() => { load() }, [load])
 
   async function resolve() {
     try {

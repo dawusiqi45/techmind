@@ -19,7 +19,10 @@ type OpsWorker struct {
 	consumer string
 }
 
-const maxOpsRetry = 3
+const (
+	maxOpsRetry  = 3
+	staleOpsIdle = 15 * time.Minute
+)
 
 // NewOpsWorker 创建 OpsWorker
 func NewOpsWorker(consumer string) *OpsWorker {
@@ -41,7 +44,13 @@ func (w *OpsWorker) Start(ctx context.Context) error {
 		default:
 		}
 
-		msgs, err := redisDAO.ReadOpsTasks(ctx, w.consumer, 5, 2000)
+		msgs, err := redisDAO.ClaimStaleOpsTasks(ctx, w.consumer, 5, staleOpsIdle)
+		if err != nil {
+			zap.L().Warn("ops worker: claim stale tasks failed", zap.Error(err))
+		}
+		if len(msgs) == 0 {
+			msgs, err = redisDAO.ReadOpsTasks(ctx, w.consumer, 5, 2000)
+		}
 		if err != nil {
 			zap.L().Warn("ops worker: read error", zap.Error(err))
 			time.Sleep(1 * time.Second)
@@ -49,7 +58,15 @@ func (w *OpsWorker) Start(ctx context.Context) error {
 		}
 
 		for _, msg := range msgs {
+			startedAt := time.Now()
 			w.processOps(ctx, msg)
+			monitor.ObserveRedisStreamConsume(redisDAO.StreamOpsTasks, redisDAO.GroupOpsWorker, time.Since(startedAt))
+		}
+		if pending, err := redisDAO.PendingOpsTasks(ctx); err == nil {
+			monitor.SetRedisStreamPending(redisDAO.StreamOpsTasks, redisDAO.GroupOpsWorker, pending)
+		}
+		if length, err := redisDAO.StreamLen(ctx, redisDAO.StreamOpsTasks); err == nil {
+			monitor.SetRedisStreamLen(redisDAO.StreamOpsTasks, length)
 		}
 	}
 }
@@ -80,21 +97,36 @@ func (w *OpsWorker) processOps(ctx context.Context, msg goredis.XMessage) {
 			deadPayload := copyValues(msg.Values)
 			deadPayload["fail_reason"] = err.Error()
 			deadPayload["original_msg_id"] = msg.ID
-			_ = redisDAO.EnqueueOpsDeadLetter(ctx, deadPayload)
+			if deadErr := redisDAO.EnqueueOpsDeadLetter(ctx, deadPayload); deadErr != nil {
+				zap.L().Error("ops worker: enqueue dead letter failed; leaving original pending", zap.Error(deadErr))
+				return
+			}
+			if ackErr := redisDAO.AckOpsTask(ctx, msg.ID); ackErr != nil {
+				zap.L().Error("ops worker: ack dead-lettered task failed", zap.Error(ackErr))
+				return
+			}
 			monitor.IncWorkerTask("ops_diagnose", "dead")
 		} else {
 			retryPayload := copyValues(msg.Values)
 			retryPayload["retry_count"] = strconv.Itoa(retryCount + 1)
 			if _, enqueueErr := redisDAO.EnqueueOpsTask(ctx, retryPayload); enqueueErr != nil {
-				zap.L().Error("ops worker: re-enqueue failed", zap.Error(enqueueErr))
+				zap.L().Error("ops worker: re-enqueue failed; leaving original pending", zap.Error(enqueueErr))
+				return
 			} else {
+				if ackErr := redisDAO.AckOpsTask(ctx, msg.ID); ackErr != nil {
+					zap.L().Error("ops worker: ack re-enqueued task failed", zap.Error(ackErr))
+					return
+				}
 				monitor.IncWorkerTask("ops_diagnose", "retry")
 			}
 		}
 	} else {
+		if ackErr := redisDAO.AckOpsTask(ctx, msg.ID); ackErr != nil {
+			zap.L().Error("ops worker: ack completed task failed", zap.Error(ackErr))
+			return
+		}
 		monitor.IncWorkerTask("ops_diagnose", "success")
 	}
-	_ = redisDAO.AckOpsTask(ctx, msg.ID)
 }
 
 // EnqueueDiagnoseTask 将诊断任务入队 ops_tasks Stream

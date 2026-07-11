@@ -93,6 +93,29 @@ func ReadAITasks(ctx context.Context, consumer string, count int64, blockMs int6
 	return streams[0].Messages, nil
 }
 
+// ClaimStaleAITasks 接管超过 minIdle 仍未 ACK 的 AI 任务，用于 Worker 崩溃恢复。
+func ClaimStaleAITasks(ctx context.Context, consumer string, count int64, minIdle time.Duration) ([]goredis.XMessage, error) {
+	return claimStaleTasks(ctx, StreamAITasks, GroupAIWorker, consumer, count, minIdle)
+}
+
+func claimStaleTasks(ctx context.Context, stream, group, consumer string, count int64, minIdle time.Duration) ([]goredis.XMessage, error) {
+	messages, _, err := RDB.XAutoClaim(ctx, &goredis.XAutoClaimArgs{
+		Stream:   stream,
+		Group:    group,
+		Consumer: consumer,
+		MinIdle:  minIdle,
+		Start:    "0-0",
+		Count:    count,
+	}).Result()
+	if err != nil {
+		if isNilOrTimeout(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return messages, nil
+}
+
 // AckAITask 确认消息已成功处理
 func AckAITask(ctx context.Context, msgID string) error {
 	return RDB.XAck(ctx, StreamAITasks, GroupAIWorker, msgID).Err()
@@ -100,7 +123,16 @@ func AckAITask(ctx context.Context, msgID string) error {
 
 // PendingAITasks 查询当前 pending（已读未 ACK）消息数量
 func PendingAITasks(ctx context.Context) (int64, error) {
-	info, err := RDB.XPending(ctx, StreamAITasks, GroupAIWorker).Result()
+	return pendingTasks(ctx, StreamAITasks, GroupAIWorker)
+}
+
+// PendingOpsTasks 查询当前已读未 ACK 的诊断任务数。
+func PendingOpsTasks(ctx context.Context) (int64, error) {
+	return pendingTasks(ctx, StreamOpsTasks, GroupOpsWorker)
+}
+
+func pendingTasks(ctx context.Context, stream, group string) (int64, error) {
+	info, err := RDB.XPending(ctx, stream, group).Result()
 	if err != nil {
 		return 0, err
 	}

@@ -21,6 +21,7 @@ const (
 	maxRetry      = 3    // 最大重试次数，超过后转死信
 	pollBatchSize = 10   // 每次 XREADGROUP 拉取条数
 	blockMs       = 2000 // 阻塞等待毫秒数
+	staleAIIdle   = 2 * time.Minute
 )
 
 // TaskHandler 任务处理函数签名
@@ -28,7 +29,7 @@ type TaskHandler func(ctx context.Context, msg goredis.XMessage) error
 
 // AIWorker 消费 AI 任务 Stream
 type AIWorker struct {
-	consumer string            // 消费者名称（唯一）
+	consumer string                 // 消费者名称（唯一）
 	handlers map[string]TaskHandler // task_type → handler
 }
 
@@ -61,7 +62,13 @@ func (w *AIWorker) Start(ctx context.Context) error {
 		default:
 		}
 
-	msgs, err := redisDAO.ReadAITasks(ctx, w.consumer, pollBatchSize, blockMs)
+		msgs, err := redisDAO.ClaimStaleAITasks(ctx, w.consumer, pollBatchSize, staleAIIdle)
+		if err != nil {
+			zap.L().Warn("AI worker: claim stale tasks failed", zap.Error(err))
+		}
+		if len(msgs) == 0 {
+			msgs, err = redisDAO.ReadAITasks(ctx, w.consumer, pollBatchSize, blockMs)
+		}
 		if err != nil {
 			zap.L().Warn("AI worker: read stream error", zap.Error(err))
 			time.Sleep(1 * time.Second)
@@ -69,7 +76,9 @@ func (w *AIWorker) Start(ctx context.Context) error {
 		}
 
 		for _, msg := range msgs {
+			startedAt := time.Now()
 			w.process(ctx, msg)
+			monitor.ObserveRedisStreamConsume(redisDAO.StreamAITasks, redisDAO.GroupAIWorker, time.Since(startedAt))
 		}
 		if pending, err := redisDAO.PendingAITasks(ctx); err == nil {
 			monitor.SetRedisStreamPending(redisDAO.StreamAITasks, redisDAO.GroupAIWorker, pending)
@@ -93,8 +102,16 @@ func (w *AIWorker) process(ctx context.Context, msg goredis.XMessage) {
 
 	handler, ok := w.handlers[taskType]
 	if !ok {
-		log.Warn("AI worker: no handler for task type, acking and skipping")
-		_ = redisDAO.AckAITask(ctx, msg.ID)
+		deadPayload := copyValues(msg.Values)
+		deadPayload["fail_reason"] = "no handler for task type"
+		deadPayload["original_msg_id"] = msg.ID
+		if err := redisDAO.EnqueueDeadLetter(ctx, deadPayload); err != nil {
+			log.Error("AI worker: move unknown task to dead letter failed", zap.Error(err))
+			return
+		}
+		if err := redisDAO.AckAITask(ctx, msg.ID); err != nil {
+			log.Error("AI worker: ack unknown task failed", zap.Error(err))
+		}
 		return
 	}
 
@@ -105,7 +122,10 @@ func (w *AIWorker) process(ctx context.Context, msg goredis.XMessage) {
 
 	err := handler(ctx, msg)
 	if err == nil {
-		_ = redisDAO.AckAITask(ctx, msg.ID)
+		if ackErr := redisDAO.AckAITask(ctx, msg.ID); ackErr != nil {
+			log.Error("AI worker: ack completed task failed", zap.Error(ackErr))
+			return
+		}
 		monitor.IncWorkerTask(taskType, "success")
 		if taskID > 0 {
 			_ = mysqlDAO.UpdateAITaskStatus(taskID, model.AITaskStatusDone, "")
@@ -124,8 +144,14 @@ func (w *AIWorker) process(ctx context.Context, msg goredis.XMessage) {
 		deadPayload := copyValues(msg.Values)
 		deadPayload["fail_reason"] = err.Error()
 		deadPayload["original_msg_id"] = msg.ID
-		_ = redisDAO.EnqueueDeadLetter(ctx, deadPayload)
-		_ = redisDAO.AckAITask(ctx, msg.ID) // 从原队列移除
+		if deadErr := redisDAO.EnqueueDeadLetter(ctx, deadPayload); deadErr != nil {
+			log.Error("AI worker: enqueue dead letter failed; leaving original pending", zap.Error(deadErr))
+			return
+		}
+		if ackErr := redisDAO.AckAITask(ctx, msg.ID); ackErr != nil {
+			log.Error("AI worker: ack dead-lettered task failed", zap.Error(ackErr))
+			return
+		}
 		if taskID > 0 {
 			_ = mysqlDAO.UpdateAITaskStatus(taskID, model.AITaskStatusDead, err.Error())
 		}
@@ -138,9 +164,13 @@ func (w *AIWorker) process(ctx context.Context, msg goredis.XMessage) {
 	retryPayload := copyValues(msg.Values)
 	retryPayload["retry_count"] = strconv.Itoa(retryCount + 1)
 	if _, enqErr := redisDAO.EnqueueAITask(ctx, retryPayload); enqErr != nil {
-		log.Error("AI worker: re-enqueue failed", zap.Error(enqErr))
+		log.Error("AI worker: re-enqueue failed; leaving original pending", zap.Error(enqErr))
+		return
 	}
-	_ = redisDAO.AckAITask(ctx, msg.ID) // ACK 原消息，让重试消息重新进入队列
+	if ackErr := redisDAO.AckAITask(ctx, msg.ID); ackErr != nil {
+		log.Error("AI worker: ack re-enqueued task failed", zap.Error(ackErr))
+		return
+	}
 	if taskID > 0 {
 		_ = mysqlDAO.IncrAITaskRetry(taskID)
 	}
@@ -175,7 +205,7 @@ func EnqueueTask(ctx context.Context, taskType string, refID int64, extra map[st
 		payload[k] = v
 	}
 	if _, err := redisDAO.EnqueueAITask(ctx, payload); err != nil {
-		// Stream 入队失败不回滚 DB（后续可补偿扫描），但记录错误
+		_ = mysqlDAO.UpdateAITaskStatus(taskID, model.AITaskStatusFailed, err.Error())
 		return fmt.Errorf("enqueue: xadd: %w", err)
 	}
 	return nil

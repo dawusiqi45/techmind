@@ -36,6 +36,16 @@ var (
 		prometheus.GaugeOpts{Name: "redis_stream_len_total", Help: "Redis Stream length."},
 		[]string{"stream"},
 	)
+	redisStreamConsumeDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{Name: "redis_stream_consume_duration_seconds", Help: "Redis Stream task processing duration in seconds.", Buckets: prometheus.DefBuckets},
+		[]string{"stream", "group"},
+	)
+	cacheHitTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{Name: "cache_hit_total", Help: "Article cache hits."},
+	)
+	cacheMissTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{Name: "cache_miss_total", Help: "Article cache misses."},
+	)
 	articleSearchDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{Name: "article_search_duration_seconds", Help: "Article search duration in seconds.", Buckets: prometheus.DefBuckets},
 		[]string{"stage"},
@@ -62,6 +72,9 @@ var (
 		prometheus.CounterOpts{Name: "worker_tasks_total", Help: "Worker task results."},
 		[]string{"task_type", "status"},
 	)
+	opsDiagnoseDuration = prometheus.NewHistogram(
+		prometheus.HistogramOpts{Name: "ops_diagnose_duration_seconds", Help: "SRE diagnosis duration in seconds.", Buckets: prometheus.DefBuckets},
+	)
 )
 
 // RegisterMetrics 注册项目自定义 Prometheus 指标。重复注册时忽略 AlreadyRegistered 错误。
@@ -74,6 +87,9 @@ func RegisterMetrics() {
 		monitorErrorEventsTotal,
 		redisStreamPendingTotal,
 		redisStreamLenTotal,
+		redisStreamConsumeDuration,
+		cacheHitTotal,
+		cacheMissTotal,
 		articleSearchDuration,
 		milvusSearchDuration,
 		milvusSearchErrorsTotal,
@@ -81,6 +97,7 @@ func RegisterMetrics() {
 		aiCallDuration,
 		aiCallErrorsTotal,
 		workerTasksTotal,
+		opsDiagnoseDuration,
 	}
 	for _, c := range collectors {
 		if err := prometheus.Register(c); err != nil {
@@ -116,6 +133,18 @@ func SetRedisStreamLen(stream string, count int64) {
 	redisStreamLenTotal.WithLabelValues(stream).Set(float64(count))
 }
 
+func ObserveRedisStreamConsume(stream, group string, duration time.Duration) {
+	redisStreamConsumeDuration.WithLabelValues(stream, group).Observe(duration.Seconds())
+}
+
+func IncCacheHit() {
+	cacheHitTotal.Inc()
+}
+
+func IncCacheMiss() {
+	cacheMissTotal.Inc()
+}
+
 func ObserveArticleSearch(stage string, duration time.Duration) {
 	articleSearchDuration.WithLabelValues(stage).Observe(duration.Seconds())
 }
@@ -139,4 +168,8 @@ func ObserveAICall(kind string, duration time.Duration, err error) {
 
 func IncWorkerTask(taskType, status string) {
 	workerTasksTotal.WithLabelValues(taskType, status).Inc()
+}
+
+func ObserveOpsDiagnose(duration time.Duration) {
+	opsDiagnoseDuration.Observe(duration.Seconds())
 }

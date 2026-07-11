@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -15,8 +16,8 @@ import (
 
 // AlertmanagerPayload 是 Alertmanager webhook POST 的顶层结构
 type AlertmanagerPayload struct {
-	Receiver string          `json:"receiver"`
-	Status   string          `json:"status"` // firing / resolved
+	Receiver string              `json:"receiver"`
+	Status   string              `json:"status"` // firing / resolved
 	Alerts   []AlertmanagerAlert `json:"alerts"`
 }
 
@@ -37,20 +38,20 @@ type AlertDetail struct {
 
 // ReceiveAlertWebhook 解析 Alertmanager webhook，对每条告警去重写库
 func ReceiveAlertWebhook(payload *AlertmanagerPayload) error {
+	var errs []error
 	for _, a := range payload.Alerts {
 		if err := upsertAlert(a); err != nil {
-			// 单条失败不中断整批，记录错误但继续
-			fmt.Printf("alert upsert error: %v\n", err)
+			errs = append(errs, fmt.Errorf("upsert alert %q: %w", a.Labels["alertname"], err))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 func upsertAlert(a AlertmanagerAlert) error {
 	alertName := a.Labels["alertname"]
-	service   := a.Labels["service"]
-	endpoint  := a.Labels["endpoint"]
-	severity  := a.Labels["severity"]
+	service := a.Labels["service"]
+	endpoint := a.Labels["endpoint"]
+	severity := a.Labels["severity"]
 	if severity == "" {
 		severity = "warning"
 	}

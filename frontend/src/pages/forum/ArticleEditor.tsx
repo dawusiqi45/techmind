@@ -15,7 +15,7 @@ export default function ArticleEditor() {
   const openLoginModal = useLoginModal((s) => s.open)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [tagIds, setTagIds] = useState<number[]>([])
+  const [tags, setTags] = useState<string[]>([])
   const [allTags, setAllTags] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
 
@@ -30,7 +30,7 @@ export default function ArticleEditor() {
         const a = r.data.data
         setTitle(a.title)
         setContent(a.content)
-        setTagIds(a.tags?.map((t: any) => t.id) || [])
+        setTags(a.tags || [])
       })
     }
   }, [id, user, openLoginModal])
@@ -40,10 +40,10 @@ export default function ArticleEditor() {
     setSaving(true)
     try {
       if (id) {
-        await articleApi.update(id, { title, content, tag_ids: tagIds })
+        await articleApi.update(id, { title, content, tags })
         message.success('更新成功')
       } else {
-        const r = await articleApi.create({ title, content, tag_ids: tagIds })
+        const r = await articleApi.create({ title, content, tags })
         message.success('发布成功')
         navigate(`/articles/${r.data.data.id}`)
       }
@@ -68,9 +68,9 @@ export default function ArticleEditor() {
           <Select
             mode="multiple"
             placeholder="添加标签"
-            value={tagIds}
-            onChange={setTagIds}
-            options={allTags.map(t => ({ value: t.id, label: t.name }))}
+            value={tags}
+            onChange={setTags}
+            options={allTags.map(t => ({ value: t.name, label: t.name }))}
             className={styles.tagSelect}
             size="small"
           />

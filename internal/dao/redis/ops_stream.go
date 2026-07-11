@@ -44,6 +44,11 @@ func ReadOpsTasks(ctx context.Context, consumer string, count int64, blockMs int
 	return streams[0].Messages, nil
 }
 
+// ClaimStaleOpsTasks 接管超过 minIdle 仍未 ACK 的诊断任务，用于 Worker 崩溃恢复。
+func ClaimStaleOpsTasks(ctx context.Context, consumer string, count int64, minIdle time.Duration) ([]goredis.XMessage, error) {
+	return claimStaleTasks(ctx, StreamOpsTasks, GroupOpsWorker, consumer, count, minIdle)
+}
+
 // AckOpsTask 确认诊断任务已处理
 func AckOpsTask(ctx context.Context, msgID string) error {
 	return RDB.XAck(ctx, StreamOpsTasks, GroupOpsWorker, msgID).Err()
