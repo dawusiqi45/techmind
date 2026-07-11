@@ -41,8 +41,8 @@ func InitLLM(cfg *settings.AISetting) error {
 	return nil
 }
 
-// ChatOnce 调用 LLM，返回第一条回复文本（导出给 Skill 层使用）
-func ChatOnce(ctx context.Context, systemPrompt, userMsg string) (string, error) {
+// Chat 调用 LLM，返回第一条回复文本，并按 Skill 写入调用审计。
+func Chat(ctx context.Context, skill, systemPrompt, userMsg string) (string, error) {
 	if llmClient == nil {
 		return "", fmt.Errorf("ai: llm client not initialized")
 	}
@@ -53,15 +53,20 @@ func ChatOnce(ctx context.Context, systemPrompt, userMsg string) (string, error)
 	start := time.Now()
 	resp, err := llmClient.Generate(ctx, msgs)
 	duration := time.Since(start)
-	monitor.ObserveAICall("llm", duration, err)
+	monitor.ObserveAICall(skill, duration, err)
 
 	// 异步写 ai_call_record
-	go writeCallRecord(ctx, "llm", llmModelName, int(duration.Milliseconds()), err)
+	go writeCallRecord(ctx, skill, llmModelName, int(duration.Milliseconds()), err)
 
 	if err != nil {
 		return "", fmt.Errorf("ai: llm generate: %w", err)
 	}
 	return resp.Content, nil
+}
+
+// ChatOnce 为既有调用保留兼容入口。
+func ChatOnce(ctx context.Context, systemPrompt, userMsg string) (string, error) {
+	return Chat(ctx, "llm", systemPrompt, userMsg)
 }
 
 // writeCallRecord 异步写入 AI 调用记录，失败只记日志不影响主流程

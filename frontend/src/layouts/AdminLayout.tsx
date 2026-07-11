@@ -44,10 +44,11 @@ const navItems: NavItem[] = [
     path: '/admin/ops/reports',
     label: 'SRE 诊断',
     icon: <ToolOutlined />,
-    children: [
-      { path: '/admin/ops/reports', label: '诊断报告', icon: <ToolOutlined /> },
-      { path: '/admin/ops/diagnose', label: '手动触发', icon: <ThunderboltOutlined /> },
-    ],
+	  children: [
+	    { path: '/admin/ops/reports', label: '诊断报告', icon: <ToolOutlined /> },
+	    { path: '/admin/ops/diagnose', label: '手动触发', icon: <ThunderboltOutlined /> },
+	    { path: '/admin/incidents', label: '故障事件', icon: <AlertOutlined /> },
+	  ],
   },
   { path: '/admin/runbooks', label: 'Runbook', icon: <BookOutlined /> },
   { path: '/admin/deployments', label: '部署变更', icon: <DeploymentUnitOutlined /> },
@@ -151,4 +152,3 @@ export default function AdminLayout() {
     </div>
   )
 }
-

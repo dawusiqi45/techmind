@@ -1,6 +1,14 @@
 # TechMind
 
-TechMind 是一个基于 Go/Gin 的技术论坛与云原生智能可观测平台。系统以技术论坛作为真实业务场景，支持文章发布、评论互动、热榜排行、关键词/语义搜索和搜索结果 AI 总结；后台围绕论坛业务构建可观测闭环，采集 HTTP 延迟、错误率、慢请求、缓存命中率、Redis Stream 积压、Milvus 检索耗时和 AI 调用状态。系统接入 Prometheus 和 Alertmanager，实现告警中心、告警去重、Robusta 式告警增强，并参考 HolmesGPT 设计 SRE Agent，通过 MCP 只读工具和 Runbook RAG 聚合指标、错误事件、队列、部署变更和历史故障，生成结构化诊断报告。
+TechMind 是一个基于 Go/Gin 的技术论坛与云原生智能可观测平台。系统以技术论坛作为真实业务场景，支持文章发布、评论互动、热榜排行、关键词/语义搜索和搜索结果 AI 总结；后台围绕论坛业务构建可观测闭环，采集 HTTP 延迟、错误率、慢请求、缓存命中率、Redis Stream 积压、Milvus 检索耗时和 AI 调用状态。系统接入 Prometheus 和 Alertmanager，实现告警中心、告警去重、告警增强，并提供只读、可循环取证的 SRE Agent。
+
+## 当前已实现的核心能力
+
+- **论坛与用户**：文章、评论、标签、点赞、收藏、个人中心、热榜、JWT 鉴权与管理员后台。
+- **AI 内容能力**：文章摘要、AI 标签、搜索总结；Milvus 与 Embedding 可用时启用文章语义搜索和 Runbook 语义检索，不可用时保留关键词/数据库降级路径。
+- **可观测与告警**：Prometheus 指标、慢请求和错误事件归档、Redis Stream 队列观测、Alertmanager Webhook、告警去重与增强。
+- **SRE Agent**：告警或手动触发 → Redis Stream 异步诊断；基础取证后由 LLM 最多追加 5 轮只读查询；支持 Prometheus、MySQL、Redis、Pod、Event、Deployment、Helm、受限 Pod 日志、Runbook 与历史报告；生成 Incident、结构化报告和可审计证据链。
+- **部署**：Docker Compose、Helm、kind 部署；Worker 使用最小只读 RBAC 查询 Kubernetes。Milvus/MinIO/etcd 在当前 kind 配置中默认不部署。
 
 ## 技术栈
 
@@ -18,7 +26,7 @@ TechMind 是一个基于 Go/Gin 的技术论坛与云原生智能可观测平台
 | Embedding | DashScope text-embedding-v4 | 文章和 Runbook 向量化 |
 | 指标 | Prometheus | HTTP、缓存、队列、AI、Milvus 指标 |
 | 告警 | Alertmanager | 告警推送和路由 |
-| K8s | Helm + kind | 本地集群部署、服务暴露、HPA 验证；client-go 查询为后续扩展 |
+| K8s | Helm + kind + client-go | 本地集群部署、服务暴露、HPA 验证与 Agent 只读查询 |
 | 部署 | Docker Compose + Helm | 本地演示和 K8s 部署 |
 
 ## 项目结构
@@ -223,6 +231,10 @@ Prometheus: http://<虚拟机IP>:30909
 | POST | `/api/v1/admin/alerts/:id/diagnose` | 对告警触发诊断 |
 | GET | `/api/v1/admin/ops/reports` | 诊断报告列表 |
 | GET | `/api/v1/admin/ops/reports/:id` | 诊断报告详情 |
+| GET | `/api/v1/admin/ops/reports/:id/timeline` | 诊断真实工具调用证据链 |
+| GET | `/api/v1/admin/incidents` | 故障事件列表 |
+| GET | `/api/v1/admin/incidents/:id` | 故障事件与关联告警 |
+| POST | `/api/v1/admin/incidents/:id/resolve` | 管理员关闭故障事件（不修改告警状态） |
 | POST | `/api/v1/admin/runbooks` | 新增 Runbook |
 | GET | `/api/v1/admin/runbooks` | Runbook 列表 |
 | POST | `/api/v1/admin/deployment-changes` | 记录部署变更 |
@@ -252,6 +264,8 @@ helm upgrade --install techmind ./deploy/helm/techmind \
 同时将 `deploy/kind/alertmanager-config.yaml` 中的 `credentials` 改为同一个 Webhook Token，再执行 `kubectl apply -f deploy/kind/alertmanager-config.yaml` 和 `kubectl rollout restart deployment/alertmanager -n techmind`。生产环境应改用外部 Secret/Vault，而非命令历史或 values 文件。
 
 完整的增量更新、迁移和验收步骤见 [docs/operations.md](docs/operations.md)。
+
+循环推理、Kubernetes 只读工具与证据链诊断的后续实现方案见 [docs/sre-agent-v2-design.md](docs/sre-agent-v2-design.md)。
 
 ### 系统
 

@@ -29,3 +29,4 @@ docs/*
 !docs/architecture.md
 !docs/项目范围.md
 !docs/operations.md
+!docs/sre-agent-v2-design.md

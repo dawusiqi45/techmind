@@ -43,6 +43,18 @@ func UpdateOpsReportStatus(id int64, status string) error {
 	return DB.Model(&model.OpsReport{}).Where("id = ?", id).Update("status", status).Error
 }
 
+// CreateOpsToolCall 写入一次 Agent 工具调用审计，失败不应中断诊断主流程。
+func CreateOpsToolCall(call *model.OpsToolCall) error {
+	return DB.Create(call).Error
+}
+
+// ListOpsToolCalls 按调用顺序读取报告的证据链。
+func ListOpsToolCalls(reportID int64) ([]*model.OpsToolCall, error) {
+	var calls []*model.OpsToolCall
+	err := DB.Where("report_id = ?", reportID).Order("id ASC").Find(&calls).Error
+	return calls, err
+}
+
 // ── DeploymentChange ────────────────────────────────────────
 
 // CreateDeploymentChange 写入部署变更

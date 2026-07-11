@@ -105,6 +105,12 @@ func Setup(mode string) *gin.Engine {
 		admin.POST("/ops/diagnose", controller.ManualDiagnose)
 		admin.GET("/ops/reports", controller.ListOpsReports)
 		admin.GET("/ops/reports/:id", controller.GetOpsReport)
+		admin.GET("/ops/reports/:id/timeline", controller.GetOpsReportTimeline)
+
+		// 故障事件：由告警诊断自动聚合，管理员可查看并手动关闭。
+		admin.GET("/incidents", controller.ListIncidents)
+		admin.GET("/incidents/:id", controller.GetIncident)
+		admin.POST("/incidents/:id/resolve", controller.ResolveIncident)
 
 		// 部署变更
 		admin.POST("/deployment-changes", controller.RecordDeploymentChange)

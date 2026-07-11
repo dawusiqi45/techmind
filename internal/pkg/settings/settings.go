@@ -107,21 +107,27 @@ func Init(configPath string) error {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.SetEnvPrefix("TECHMIND")
 	v.AutomaticEnv()
-	for _, key := range []string{
-		"app.mode",
-		"server.addr",
-		"log.level",
-		"mysql.dsn",
-		"redis.addr",
-		"redis.password",
-		"milvus.addr",
-		"jwt.secret",
-		"ai.llmApiKey",
-		"ai.embeddingApiKey",
-		"monitor.prometheusURL",
-		"alert.webhookToken",
-	} {
-		if err := v.BindEnv(key); err != nil {
+	// 显式绑定环境变量。Viper 仅把 '.' 替换为 '_'，不会自动在驼峰字段
+	// 内插入下划线；因此 AI/Webhook 等字段不能只依赖默认 BindEnv 行为。
+	envBindings := map[string]string{
+		"app.mode":              "TECHMIND_APP_MODE",
+		"server.addr":           "TECHMIND_SERVER_ADDR",
+		"log.level":             "TECHMIND_LOG_LEVEL",
+		"mysql.dsn":             "TECHMIND_MYSQL_DSN",
+		"redis.addr":            "TECHMIND_REDIS_ADDR",
+		"redis.password":        "TECHMIND_REDIS_PASSWORD",
+		"milvus.addr":           "TECHMIND_MILVUS_ADDR",
+		"jwt.secret":            "TECHMIND_JWT_SECRET",
+		"ai.llmBaseURL":         "TECHMIND_AI_LLM_BASE_URL",
+		"ai.llmApiKey":          "TECHMIND_AI_LLM_API_KEY",
+		"ai.llmModel":           "TECHMIND_AI_LLM_MODEL",
+		"ai.embeddingApiKey":    "TECHMIND_AI_EMBEDDING_API_KEY",
+		"ai.embeddingModel":     "TECHMIND_AI_EMBEDDING_MODEL",
+		"monitor.prometheusURL": "TECHMIND_MONITOR_PROMETHEUS_URL",
+		"alert.webhookToken":    "TECHMIND_ALERT_WEBHOOK_TOKEN",
+	}
+	for key, envName := range envBindings {
+		if err := v.BindEnv(key, envName); err != nil {
 			return fmt.Errorf("settings: bind env %q: %w", key, err)
 		}
 	}
@@ -142,8 +148,11 @@ func Init(configPath string) error {
 	Conf.Redis.Password = v.GetString("redis.password")
 	Conf.Milvus.Addr = v.GetString("milvus.addr")
 	Conf.JWT.Secret = v.GetString("jwt.secret")
+	Conf.AI.LLMBaseURL = v.GetString("ai.llmBaseURL")
 	Conf.AI.LLMAPIKey = v.GetString("ai.llmApiKey")
+	Conf.AI.LLMModel = v.GetString("ai.llmModel")
 	Conf.AI.EmbeddingAPIKey = v.GetString("ai.embeddingApiKey")
+	Conf.AI.EmbeddingModel = v.GetString("ai.embeddingModel")
 	Conf.Monitor.PrometheusURL = v.GetString("monitor.prometheusURL")
 	Conf.Alert.WebhookToken = v.GetString("alert.webhookToken")
 	return nil

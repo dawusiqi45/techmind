@@ -84,6 +84,7 @@ spec:
       labels:
         {{- include "techmind.worker.selectorLabels" . | nindent 8 }}
     spec:
+      serviceAccountName: {{ include "techmind.fullname" . }}-agent-reader
       containers:
         - name: worker
           image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag }}"

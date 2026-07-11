@@ -4,3 +4,7 @@
 .block { background: #161b22; border: 1px solid #30363d; margin-bottom: 12px; }
 .block :global(.ant-card-head) { border-bottom: 1px solid #30363d; color: #e6edf3; }
 .block :global(.ant-card-body) { color: #c9d1d9; }
+.timelineItem { color: #c9d1d9; }
+.timelineItem span { margin-left: 8px; color: #8b949e; font-size: 12px; }
+.timelineItem p { margin: 6px 0; color: #8b949e; }
+.timelineItem pre { max-height: 260px; overflow: auto; padding: 10px; margin: 0; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-size: 12px; white-space: pre-wrap; word-break: break-word; }

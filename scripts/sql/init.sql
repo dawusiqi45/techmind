@@ -147,6 +147,7 @@ CREATE TABLE IF NOT EXISTS `runbook` (
 CREATE TABLE IF NOT EXISTS `ops_report` (
     `id`           BIGINT       NOT NULL COMMENT '雪花ID',
     `alert_id`     BIGINT       NOT NULL DEFAULT 0 COMMENT '触发来源告警ID，手动触发为0',
+    `incident_id`  BIGINT       NOT NULL DEFAULT 0 COMMENT '关联故障事件ID，手动诊断为0',
     `trigger_type` VARCHAR(16)  NOT NULL DEFAULT 'manual' COMMENT 'manual/alert',
     `summary`      TEXT         NOT NULL,
     `evidence`     JSON         NOT NULL COMMENT '证据列表',
@@ -159,6 +160,7 @@ CREATE TABLE IF NOT EXISTS `ops_report` (
     `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `idx_alert_id` (`alert_id`),
+    KEY `idx_incident_id` (`incident_id`),
     KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SRE诊断报告表';
 

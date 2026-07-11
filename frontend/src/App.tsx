@@ -23,6 +23,8 @@ import OpsReportDetail from '@/pages/admin/OpsReportDetail'
 import OpsDiagnose from '@/pages/admin/OpsDiagnose'
 import Runbooks from '@/pages/admin/Runbooks'
 import Deployments from '@/pages/admin/Deployments'
+import Incidents from '@/pages/admin/Incidents'
+import IncidentDetail from '@/pages/admin/IncidentDetail'
 import { useAuthStore } from '@/store/auth'
 import LoginModal from '@/components/forum/LoginModal'
 
@@ -69,6 +71,8 @@ export default function App() {
           <Route path="/admin/ops/reports" element={<OpsReports />} />
           <Route path="/admin/ops/reports/:id" element={<OpsReportDetail />} />
           <Route path="/admin/ops/diagnose" element={<OpsDiagnose />} />
+          <Route path="/admin/incidents" element={<Incidents />} />
+          <Route path="/admin/incidents/:id" element={<IncidentDetail />} />
           <Route path="/admin/runbooks" element={<Runbooks />} />
           <Route path="/admin/deployments" element={<Deployments />} />
         </Route>

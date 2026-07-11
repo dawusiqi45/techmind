@@ -51,13 +51,13 @@ data:
       accessExpireMin: 60
       refreshExpireH: 168
     ai:
-      llmBaseURL: "https://api.deepseek.com/v1"
+      llmBaseURL: {{ .Values.ai.llmBaseURL | quote }}
       llmApiKey: ""
-      llmModel: "deepseek-chat"
+      llmModel: {{ .Values.ai.llmModel | quote }}
       embeddingApiKey: ""
-      embeddingModel: "ep-xxx"
-      timeoutSec: 30
-      maxConcurrency: 5
+      embeddingModel: {{ .Values.ai.embeddingModel | quote }}
+      timeoutSec: {{ .Values.ai.timeoutSec }}
+      maxConcurrency: {{ .Values.ai.maxConcurrency }}
     monitor:
       prometheusURL: "http://prometheus:9090"
     alert:

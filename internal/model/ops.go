@@ -6,6 +6,7 @@ import "time"
 type OpsReport struct {
 	ID             int64     `gorm:"primaryKey"                   json:"id,string"`
 	AlertID        int64     `gorm:"default:0;index"              json:"alert_id,string"`
+	IncidentID     int64     `gorm:"default:0;index"              json:"incident_id,string"`
 	TriggerType    string    `gorm:"default:'manual'"             json:"trigger_type"` // manual/alert
 	Summary        string    `gorm:"type:text"                    json:"summary"`
 	Evidence       JSONSlice `gorm:"serializer:json"              json:"evidence"`
@@ -19,6 +20,19 @@ type OpsReport struct {
 }
 
 func (OpsReport) TableName() string { return "ops_report" }
+
+// OpsToolCall 对应 ops_tool_call 表，保存诊断中每次真实的只读工具调用。
+type OpsToolCall struct {
+	ID         int64     `gorm:"primaryKey;autoIncrement"      json:"id,string"`
+	ReportID   int64     `gorm:"not null;index"                json:"report_id,string"`
+	ToolName   string    `gorm:"not null"                      json:"tool_name"`
+	Input      JSONMap   `gorm:"serializer:json"               json:"input"`
+	Output     JSONMap   `gorm:"serializer:json"               json:"output"`
+	DurationMs int       `gorm:"default:0"                     json:"duration_ms"`
+	CreatedAt  time.Time `                                      json:"created_at"`
+}
+
+func (OpsToolCall) TableName() string { return "ops_tool_call" }
 
 // JSONSlice 是 JSON 数组列的 Go 类型
 type JSONSlice []interface{}

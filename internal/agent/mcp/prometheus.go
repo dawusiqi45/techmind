@@ -44,6 +44,23 @@ func PrometheusSnapshot(ctx context.Context, alertName string) Evidence {
 	return evidence
 }
 
+// PrometheusRangeSnapshot 以固定时间窗查询趋势，供诊断 Agent 判断异常起点而非只看瞬时值。
+func PrometheusRangeSnapshot(ctx context.Context, alertName string, end time.Time) Evidence {
+	baseURL := strings.TrimRight(settings.Conf.Monitor.PrometheusURL, "/")
+	if baseURL == "" {
+		return Evidence{"prometheus_range_status": "not configured"}
+	}
+	query := "sum(rate(http_requests_total{path!=\"/metrics\"}[5m]))"
+	if alertName == "SearchLatencyHigh" {
+		query = "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{path=\"/api/v1/search\"}[5m])) by (le))"
+	}
+	result, err := queryPrometheusRange(ctx, baseURL, query, end.Add(-30*time.Minute), end, time.Minute)
+	if err != nil {
+		return Evidence{"prometheus_range_error": err.Error()}
+	}
+	return Evidence{"prometheus_range_30m": result}
+}
+
 func queryPrometheus(ctx context.Context, baseURL, query string) (string, error) {
 	endpoint := baseURL + "/api/v1/query?query=" + url.QueryEscape(query)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
@@ -74,6 +91,43 @@ func queryPrometheus(ctx context.Context, baseURL, query string) (string, error)
 	result := string(payload.Data.Result)
 	if len(result) > 2000 {
 		result = result[:2000] + "..."
+	}
+	return result, nil
+}
+
+func queryPrometheusRange(ctx context.Context, baseURL, query string, start, end time.Time, step time.Duration) (string, error) {
+	params := url.Values{}
+	params.Set("query", query)
+	params.Set("start", fmt.Sprintf("%d", start.Unix()))
+	params.Set("end", fmt.Sprintf("%d", end.Unix()))
+	params.Set("step", fmt.Sprintf("%ds", int(step.Seconds())))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/v1/query_range?"+params.Encode(), nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := (&http.Client{Timeout: 5 * time.Second}).Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("prometheus returned %s", resp.Status)
+	}
+	var payload struct {
+		Status string `json:"status"`
+		Data   struct {
+			Result json.RawMessage `json:"result"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return "", err
+	}
+	if payload.Status != "success" {
+		return "", fmt.Errorf("prometheus query status %q", payload.Status)
+	}
+	result := string(payload.Data.Result)
+	if len(result) > 4000 {
+		result = result[:4000] + "..."
 	}
 	return result, nil
 }

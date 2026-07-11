@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	mysqlDAO "techmind/internal/dao/mysql"
+	"techmind/internal/model"
 	"techmind/internal/pkg/response"
 	"techmind/internal/worker"
 
@@ -76,5 +77,33 @@ func GetOpsReport(c *gin.Context) {
 		response.Fail(c, response.CodeNotFound)
 		return
 	}
-	response.OK(c, report)
+	data := struct {
+		*model.OpsReport
+		Incident *model.Incident `json:"incident,omitempty"`
+	}{OpsReport: report}
+	if report.IncidentID > 0 {
+		incident, err := mysqlDAO.GetIncidentByID(report.IncidentID)
+		if err != nil {
+			response.Fail(c, response.CodeServerError)
+			return
+		}
+		data.Incident = incident
+	}
+	response.OK(c, data)
+}
+
+// GetOpsReportTimeline GET /api/v1/admin/ops/reports/:id/timeline
+// 返回报告关联的真实工具调用审计，供前端证据链时间线展示。
+func GetOpsReportTimeline(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Fail(c, response.CodeInvalidParam)
+		return
+	}
+	calls, err := mysqlDAO.ListOpsToolCalls(id)
+	if err != nil {
+		response.Fail(c, response.CodeServerError)
+		return
+	}
+	response.OK(c, calls)
 }
