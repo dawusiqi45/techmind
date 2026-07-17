@@ -22,6 +22,7 @@ type AppConfig struct {
 	AI        AISetting        `mapstructure:"ai"`
 	Monitor   MonitorSetting   `mapstructure:"monitor"`
 	Alert     AlertSetting     `mapstructure:"alert"`
+	Ops       OpsSetting       `mapstructure:"ops"`
 	RateLimit RateLimitSetting `mapstructure:"rateLimit"`
 }
 
@@ -93,6 +94,13 @@ type AlertSetting struct {
 	WebhookToken string `mapstructure:"webhookToken"`
 }
 
+// OpsSetting 定义 SRE Agent 的安全边界和自动触发策略。
+type OpsSetting struct {
+	AutoDiagnose       bool `mapstructure:"autoDiagnose"`
+	DiagnoseTimeoutSec int  `mapstructure:"diagnoseTimeoutSec"`
+	EvidenceWindowMin  int  `mapstructure:"evidenceWindowMin"`
+}
+
 // RateLimitSetting 限流配置
 type RateLimitSetting struct {
 	Enabled        bool `mapstructure:"enabled"`
@@ -110,21 +118,24 @@ func Init(configPath string) error {
 	// 显式绑定环境变量。Viper 仅把 '.' 替换为 '_'，不会自动在驼峰字段
 	// 内插入下划线；因此 AI/Webhook 等字段不能只依赖默认 BindEnv 行为。
 	envBindings := map[string]string{
-		"app.mode":              "TECHMIND_APP_MODE",
-		"server.addr":           "TECHMIND_SERVER_ADDR",
-		"log.level":             "TECHMIND_LOG_LEVEL",
-		"mysql.dsn":             "TECHMIND_MYSQL_DSN",
-		"redis.addr":            "TECHMIND_REDIS_ADDR",
-		"redis.password":        "TECHMIND_REDIS_PASSWORD",
-		"milvus.addr":           "TECHMIND_MILVUS_ADDR",
-		"jwt.secret":            "TECHMIND_JWT_SECRET",
-		"ai.llmBaseURL":         "TECHMIND_AI_LLM_BASE_URL",
-		"ai.llmApiKey":          "TECHMIND_AI_LLM_API_KEY",
-		"ai.llmModel":           "TECHMIND_AI_LLM_MODEL",
-		"ai.embeddingApiKey":    "TECHMIND_AI_EMBEDDING_API_KEY",
-		"ai.embeddingModel":     "TECHMIND_AI_EMBEDDING_MODEL",
-		"monitor.prometheusURL": "TECHMIND_MONITOR_PROMETHEUS_URL",
-		"alert.webhookToken":    "TECHMIND_ALERT_WEBHOOK_TOKEN",
+		"app.mode":               "TECHMIND_APP_MODE",
+		"server.addr":            "TECHMIND_SERVER_ADDR",
+		"log.level":              "TECHMIND_LOG_LEVEL",
+		"mysql.dsn":              "TECHMIND_MYSQL_DSN",
+		"redis.addr":             "TECHMIND_REDIS_ADDR",
+		"redis.password":         "TECHMIND_REDIS_PASSWORD",
+		"milvus.addr":            "TECHMIND_MILVUS_ADDR",
+		"jwt.secret":             "TECHMIND_JWT_SECRET",
+		"ai.llmBaseURL":          "TECHMIND_AI_LLM_BASE_URL",
+		"ai.llmApiKey":           "TECHMIND_AI_LLM_API_KEY",
+		"ai.llmModel":            "TECHMIND_AI_LLM_MODEL",
+		"ai.embeddingApiKey":     "TECHMIND_AI_EMBEDDING_API_KEY",
+		"ai.embeddingModel":      "TECHMIND_AI_EMBEDDING_MODEL",
+		"monitor.prometheusURL":  "TECHMIND_MONITOR_PROMETHEUS_URL",
+		"alert.webhookToken":     "TECHMIND_ALERT_WEBHOOK_TOKEN",
+		"ops.autoDiagnose":       "TECHMIND_OPS_AUTO_DIAGNOSE",
+		"ops.diagnoseTimeoutSec": "TECHMIND_OPS_DIAGNOSE_TIMEOUT_SEC",
+		"ops.evidenceWindowMin":  "TECHMIND_OPS_EVIDENCE_WINDOW_MIN",
 	}
 	for key, envName := range envBindings {
 		if err := v.BindEnv(key, envName); err != nil {
@@ -155,5 +166,8 @@ func Init(configPath string) error {
 	Conf.AI.EmbeddingModel = v.GetString("ai.embeddingModel")
 	Conf.Monitor.PrometheusURL = v.GetString("monitor.prometheusURL")
 	Conf.Alert.WebhookToken = v.GetString("alert.webhookToken")
+	Conf.Ops.AutoDiagnose = v.GetBool("ops.autoDiagnose")
+	Conf.Ops.DiagnoseTimeoutSec = v.GetInt("ops.diagnoseTimeoutSec")
+	Conf.Ops.EvidenceWindowMin = v.GetInt("ops.evidenceWindowMin")
 	return nil
 }

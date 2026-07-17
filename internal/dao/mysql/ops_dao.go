@@ -1,12 +1,14 @@
 package mysql
 
 import (
+	"context"
 	"errors"
 	"time"
 
 	"techmind/internal/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ── OpsReport ───────────────────────────────────────────────
@@ -14,6 +16,44 @@ import (
 // CreateOpsReport 写入诊断报告
 func CreateOpsReport(r *model.OpsReport) error {
 	return DB.Create(r).Error
+}
+
+// PrepareOpsReport 按 task_key 幂等创建或复用报告。
+// Worker 重试和 stale claim 不会再为同一任务生成多份报告。
+func PrepareOpsReport(candidate *model.OpsReport) (report *model.OpsReport, completed bool, err error) {
+	err = DB.Transaction(func(tx *gorm.DB) error {
+		var existing model.OpsReport
+		queryErr := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("task_key = ?", candidate.TaskKey).First(&existing).Error
+		if queryErr == nil {
+			if existing.Status == "done" {
+				report = &existing
+				completed = true
+				return nil
+			}
+			if err := tx.Model(&existing).Updates(map[string]interface{}{
+				"alert_id": candidate.AlertID, "incident_id": candidate.IncidentID,
+				"trigger_type": candidate.TriggerType, "status": "running",
+			}).Error; err != nil {
+				return err
+			}
+			existing.AlertID = candidate.AlertID
+			existing.IncidentID = candidate.IncidentID
+			existing.TriggerType = candidate.TriggerType
+			existing.Status = "running"
+			report = &existing
+			return nil
+		}
+		if !errors.Is(queryErr, gorm.ErrRecordNotFound) {
+			return queryErr
+		}
+		if err := tx.Create(candidate).Error; err != nil {
+			return err
+		}
+		report = candidate
+		return nil
+	})
+	return report, completed, err
 }
 
 // GetOpsReportByID 按 ID 查询
@@ -44,8 +84,8 @@ func UpdateOpsReportStatus(id int64, status string) error {
 }
 
 // CreateOpsToolCall 写入一次 Agent 工具调用审计，失败不应中断诊断主流程。
-func CreateOpsToolCall(call *model.OpsToolCall) error {
-	return DB.Create(call).Error
+func CreateOpsToolCall(ctx context.Context, call *model.OpsToolCall) error {
+	return DB.WithContext(ctx).Create(call).Error
 }
 
 // ListOpsToolCalls 按调用顺序读取报告的证据链。
@@ -89,6 +129,18 @@ func GetRecentChanges(service string, alertTime time.Time, windowMinutes int) ([
 		q = q.Where("service = ?", service)
 	}
 
+	var list []*model.DeploymentChange
+	err := q.Order("changed_at DESC").Find(&list).Error
+	return list, err
+}
+
+// GetChangesBetween 查询精确诊断时间窗内的部署变更。
+func GetChangesBetween(ctx context.Context, service string, start, end time.Time) ([]*model.DeploymentChange, error) {
+	q := DB.WithContext(ctx).Model(&model.DeploymentChange{}).
+		Where("changed_at BETWEEN ? AND ?", start, end)
+	if service != "" {
+		q = q.Where("service = ?", service)
+	}
 	var list []*model.DeploymentChange
 	err := q.Order("changed_at DESC").Find(&list).Error
 	return list, err

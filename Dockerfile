@@ -26,7 +26,7 @@ FROM alpine:latest AS server
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 COPY --from=server-builder /app/techmind-server /app/techmind-server
-COPY config/ ./config/
+COPY config/config.example.yaml /app/config/config.yaml
 EXPOSE 8080
 CMD ["/app/techmind-server"]
 
@@ -35,5 +35,5 @@ FROM alpine:latest AS worker
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 COPY --from=worker-builder /app/techmind-worker /app/techmind-worker
-COPY config/ ./config/
+COPY config/config.example.yaml /app/config/config.yaml
 CMD ["/app/techmind-worker"]

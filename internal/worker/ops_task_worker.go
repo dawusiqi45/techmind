@@ -9,6 +9,8 @@ import (
 	"techmind/internal/agent"
 	redisDAO "techmind/internal/dao/redis"
 	"techmind/internal/monitor"
+	"techmind/internal/pkg/settings"
+	"techmind/internal/pkg/snowflake"
 
 	goredis "github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
@@ -72,10 +74,11 @@ func (w *OpsWorker) Start(ctx context.Context) error {
 }
 
 func (w *OpsWorker) processOps(ctx context.Context, msg goredis.XMessage) {
-	alertIDStr, _ := msg.Values["alert_id"].(string)
-	triggerType, _ := msg.Values["trigger_type"].(string)
-	service, _ := msg.Values["service"].(string)
-	alertName, _ := msg.Values["alert_name"].(string)
+	alertIDStr := messageString(msg.Values["alert_id"])
+	triggerType := messageString(msg.Values["trigger_type"])
+	service := messageString(msg.Values["service"])
+	alertName := messageString(msg.Values["alert_name"])
+	taskKey := messageString(msg.Values["task_key"])
 
 	alertID, _ := strconv.ParseInt(alertIDStr, 10, 64)
 
@@ -84,6 +87,9 @@ func (w *OpsWorker) processOps(ctx context.Context, msg goredis.XMessage) {
 		TriggerType: triggerType,
 		Service:     service,
 		AlertName:   alertName,
+		TaskKey:     taskKey,
+		WindowStart: parseTaskTime(msg.Values["window_start"]),
+		WindowEnd:   parseTaskTime(msg.Values["window_end"]),
 	}
 
 	if _, err := agent.Diagnose(ctx, input); err != nil {
@@ -131,13 +137,66 @@ func (w *OpsWorker) processOps(ctx context.Context, msg goredis.XMessage) {
 
 // EnqueueDiagnoseTask 将诊断任务入队 ops_tasks Stream
 func EnqueueDiagnoseTask(ctx context.Context, alertID int64, triggerType, service, alertName string) error {
+	return EnqueueDiagnoseTaskAt(ctx, alertID, triggerType, service, alertName, time.Now(), "")
+}
+
+// EnqueueDiagnoseTaskAt 将诊断锚定到 observedAt；dedupSeed 非空时原子去重自动告警任务。
+func EnqueueDiagnoseTaskAt(ctx context.Context, alertID int64, triggerType, service, alertName string, observedAt time.Time, dedupSeed string) error {
+	windowStart, windowEnd := diagnosisWindow(observedAt)
+	taskKey := dedupSeed
+	if taskKey == "" {
+		taskKey = fmt.Sprintf("%s:%d", triggerType, snowflake.GenID())
+	}
 	payload := map[string]interface{}{
 		"alert_id":     strconv.FormatInt(alertID, 10),
 		"trigger_type": triggerType,
 		"service":      service,
 		"alert_name":   alertName,
+		"task_key":     taskKey,
+		"window_start": windowStart.UTC().Format(time.RFC3339Nano),
+		"window_end":   windowEnd.UTC().Format(time.RFC3339Nano),
 		"retry_count":  "0",
+	}
+	if dedupSeed != "" {
+		_, _, err := redisDAO.EnqueueOpsTaskOnce(ctx, "tm:ops:dedup:"+dedupSeed, 24*time.Hour, payload)
+		return err
 	}
 	_, err := redisDAO.EnqueueOpsTask(ctx, payload)
 	return err
+}
+
+func diagnosisWindow(observedAt time.Time) (time.Time, time.Time) {
+	now := time.Now()
+	window := time.Duration(settings.Conf.Ops.EvidenceWindowMin) * time.Minute
+	if window <= 0 || window > 60*time.Minute {
+		window = 30 * time.Minute
+	}
+	if observedAt.IsZero() {
+		return now.Add(-window), now
+	}
+	half := window / 2
+	start := observedAt.Add(-half)
+	end := observedAt.Add(half)
+	if end.After(now) {
+		end = now
+	}
+	if !end.After(start) {
+		start = end.Add(-window)
+	}
+	return start, end
+}
+
+func parseTaskTime(value interface{}) time.Time {
+	parsed, err := time.Parse(time.RFC3339Nano, messageString(value))
+	if err != nil {
+		return time.Time{}
+	}
+	return parsed
+}
+
+func messageString(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprint(value)
 }

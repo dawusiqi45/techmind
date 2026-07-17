@@ -6,11 +6,12 @@ import (
 	"strconv"
 	"strings"
 
-	mysqlDAO "techmind/internal/dao/mysql"
-	milvusDAO "techmind/internal/dao/milvus"
-	redisDAO "techmind/internal/dao/redis"
+	"techmind/internal/agent"
 	aiEmbed "techmind/internal/ai/embedding"
 	aiSkill "techmind/internal/ai/prompt"
+	milvusDAO "techmind/internal/dao/milvus"
+	mysqlDAO "techmind/internal/dao/mysql"
+	redisDAO "techmind/internal/dao/redis"
 	"techmind/internal/model"
 	"techmind/internal/pkg/settings"
 	"techmind/internal/pkg/snowflake"
@@ -26,6 +27,26 @@ func RegisterAIHandlers(w *AIWorker) {
 	w.Register(redisDAO.TaskArticleIndex, handleArticleIndex)
 	w.Register(redisDAO.TaskArticleReindex, handleArticleReindex)
 	w.Register(redisDAO.TaskArticleDeleteIndex, handleArticleDeleteIndex)
+	w.Register(redisDAO.TaskRunbookIndex, handleRunbookIndex)
+}
+
+func handleRunbookIndex(ctx context.Context, msg goredis.XMessage) error {
+	runbookID, err := extractRefID(msg)
+	if err != nil {
+		return err
+	}
+	runbook, err := mysqlDAO.GetRunbookByID(runbookID)
+	if err != nil || runbook == nil {
+		return fmt.Errorf("runbook index: runbook %d not found", runbookID)
+	}
+	if err := agent.IndexRunbook(ctx, runbook.ID, runbook.Title, runbook.Content); err != nil {
+		_ = mysqlDAO.UpdateRunbookIndexStatus(runbookID, -1)
+		return err
+	}
+	if err := mysqlDAO.UpdateRunbookIndexStatus(runbookID, 1); err != nil {
+		return fmt.Errorf("runbook index: update status: %w", err)
+	}
+	return nil
 }
 
 // handleArticleSummary 调用 LLM 生成文章摘要并回写 DB

@@ -17,7 +17,6 @@ receivers:
           authorization:
             type: Bearer
             credentials: 'techmind-compose-alert-webhook'
-          timeout: 10s
 
 inhibit_rules:
   - source_match:

@@ -24,11 +24,10 @@ type toolRecorder struct {
 }
 
 func (r *toolRecorder) execute(ctx context.Context, name, reason string, fn func() mcp.Evidence) mcp.Evidence {
-	_ = ctx
 	start := time.Now()
 	output := fn()
 	input := model.JSONMap{"reason": sanitizeAuditString(reason)}
-	_ = mysqlDAO.CreateOpsToolCall(&model.OpsToolCall{
+	_ = mysqlDAO.CreateOpsToolCall(ctx, &model.OpsToolCall{
 		ReportID:   r.reportID,
 		ToolName:   name,
 		Input:      input,

@@ -16,9 +16,9 @@ import (
 // Evidence 是工具采集到的证据
 type Evidence map[string]interface{}
 
-// SlowRequestQuery 查询最近 topN 条慢请求
-func SlowRequestQuery(ctx context.Context, topN int) Evidence {
-	list, total, err := mysqlDAO.ListSlowRequests(1, topN)
+// SlowRequestQuery 查询诊断时间窗内 topN 条慢请求。
+func SlowRequestQuery(ctx context.Context, topN int, start, end time.Time) Evidence {
+	list, total, err := mysqlDAO.ListSlowRequestsInWindow(ctx, start, end, topN)
 	if err != nil {
 		return Evidence{"error": err.Error()}
 	}
@@ -33,9 +33,9 @@ func SlowRequestQuery(ctx context.Context, topN int) Evidence {
 	}
 }
 
-// ErrorEventQuery 查询最近错误事件
-func ErrorEventQuery(ctx context.Context, source string, topN int) Evidence {
-	list, total, err := mysqlDAO.ListErrorEvents(source, 1, topN)
+// ErrorEventQuery 查询诊断时间窗内发生或更新的错误事件。
+func ErrorEventQuery(ctx context.Context, source string, topN int, start, end time.Time) Evidence {
+	list, total, err := mysqlDAO.ListErrorEventsInWindow(ctx, source, start, end, topN)
 	if err != nil {
 		return Evidence{"error": err.Error()}
 	}
@@ -56,13 +56,19 @@ func RedisStreamStats(ctx context.Context) Evidence {
 	length, err2 := redisDAO.StreamLen(ctx, redisDAO.StreamAITasks)
 	deadLen, err3 := redisDAO.StreamLen(ctx, redisDAO.StreamAIDeadLetter)
 	ev := Evidence{
-		"ai_task_pending":     pending,
-		"ai_stream_length":    length,
+		"ai_task_pending":       pending,
+		"ai_stream_length":      length,
 		"ai_dead_letter_length": deadLen,
 	}
-	if err1 != nil { ev["pending_error"] = err1.Error() }
-	if err2 != nil { ev["length_error"] = err2.Error() }
-	if err3 != nil { ev["dead_error"] = err3.Error() }
+	if err1 != nil {
+		ev["pending_error"] = err1.Error()
+	}
+	if err2 != nil {
+		ev["length_error"] = err2.Error()
+	}
+	if err3 != nil {
+		ev["dead_error"] = err3.Error()
+	}
 	return ev
 }
 
@@ -83,9 +89,9 @@ func AlertQuery(ctx context.Context, topN int) Evidence {
 	}
 }
 
-// RecentChangesQuery 查询最近 windowMin 内的部署变更
-func RecentChangesQuery(ctx context.Context, service string, windowMin int) Evidence {
-	changes, err := mysqlDAO.GetRecentChanges(service, time.Now(), windowMin)
+// RecentChangesQuery 查询精确诊断时间窗内的部署变更。
+func RecentChangesQuery(ctx context.Context, service string, start, end time.Time) Evidence {
+	changes, err := mysqlDAO.GetChangesBetween(ctx, service, start, end)
 	if err != nil {
 		return Evidence{"error": err.Error()}
 	}

@@ -149,11 +149,16 @@ CREATE TABLE IF NOT EXISTS `ops_report` (
     `alert_id`     BIGINT       NOT NULL DEFAULT 0 COMMENT '触发来源告警ID，手动触发为0',
     `incident_id`  BIGINT       NOT NULL DEFAULT 0 COMMENT '关联故障事件ID，手动诊断为0',
     `trigger_type` VARCHAR(16)  NOT NULL DEFAULT 'manual' COMMENT 'manual/alert',
+    `task_key`     VARCHAR(128) NOT NULL COMMENT 'Redis诊断任务幂等键',
     `summary`      TEXT         NOT NULL,
     `evidence`     JSON         NOT NULL COMMENT '证据列表',
     `root_cause`   TEXT         NOT NULL,
     `impact`       TEXT         NOT NULL DEFAULT '',
     `suggestions`  JSON         NOT NULL COMMENT '建议列表',
+    `verification_commands` JSON NOT NULL COMMENT '只读排查命令',
+    `change_plan`          JSON NOT NULL COMMENT '需人工审批的修改方案',
+    `validation_commands`  JSON NOT NULL COMMENT '修改后验证命令',
+    `rollback_commands`    JSON NOT NULL COMMENT '回滚命令',
     `related_changes` JSON      NOT NULL COMMENT '关联变更',
     `tool_calls`   JSON         NOT NULL COMMENT '工具调用记录',
     `status`       VARCHAR(16)  NOT NULL DEFAULT 'done',
@@ -161,6 +166,7 @@ CREATE TABLE IF NOT EXISTS `ops_report` (
     PRIMARY KEY (`id`),
     KEY `idx_alert_id` (`alert_id`),
     KEY `idx_incident_id` (`incident_id`),
+    UNIQUE KEY `uk_task_key` (`task_key`),
     KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SRE诊断报告表';
 

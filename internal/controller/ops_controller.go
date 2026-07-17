@@ -45,7 +45,11 @@ func AlertDiagnose(c *gin.Context) {
 		return
 	}
 
-	if err := worker.EnqueueDiagnoseTask(c.Request.Context(), alertID, "alert", event.Service, event.AlertName); err != nil {
+	observedAt := event.FirstSeenAt
+	if observedAt.IsZero() {
+		observedAt = event.LastSeenAt
+	}
+	if err := worker.EnqueueDiagnoseTaskAt(c.Request.Context(), alertID, "alert", event.Service, event.AlertName, observedAt, ""); err != nil {
 		response.Fail(c, response.CodeServerError)
 		return
 	}

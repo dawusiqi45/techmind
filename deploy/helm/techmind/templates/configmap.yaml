@@ -62,6 +62,10 @@ data:
       prometheusURL: "http://prometheus:9090"
     alert:
       webhookToken: ""
+    ops:
+      autoDiagnose: {{ .Values.ops.autoDiagnose }}
+      diagnoseTimeoutSec: {{ .Values.ops.diagnoseTimeoutSec }}
+      evidenceWindowMin: {{ .Values.ops.evidenceWindowMin }}
     rateLimit:
       enabled: true
       requestsPerMin: 60

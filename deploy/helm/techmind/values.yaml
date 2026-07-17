@@ -25,6 +25,11 @@ ai:
   timeoutSec: 30
   maxConcurrency: 5
 
+ops:
+  autoDiagnose: true
+  diagnoseTimeoutSec: 120
+  evidenceWindowMin: 30
+
 # ========== Server 配置 ==========
 server:
   enabled: true

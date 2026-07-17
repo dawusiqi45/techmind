@@ -7,7 +7,7 @@ TechMind 是一个基于 Go/Gin 的技术论坛与云原生智能可观测平台
 - **论坛与用户**：文章、评论、标签、点赞、收藏、个人中心、热榜、JWT 鉴权与管理员后台。
 - **AI 内容能力**：文章摘要、AI 标签、搜索总结；Milvus 与 Embedding 可用时启用文章语义搜索和 Runbook 语义检索，不可用时保留关键词/数据库降级路径。
 - **可观测与告警**：Prometheus 指标、慢请求和错误事件归档、Redis Stream 队列观测、Alertmanager Webhook、告警去重与增强。
-- **SRE Agent**：告警或手动触发 → Redis Stream 异步诊断；基础取证后由 LLM 最多追加 5 轮只读查询；支持 Prometheus、MySQL、Redis、Pod、Event、Deployment、Helm、受限 Pod 日志、Runbook 与历史报告；生成 Incident、结构化报告和可审计证据链。
+- **SRE Agent**：firing 告警自动去重入队，也支持管理员手动触发；诊断按告警时间窗采集 Prometheus、慢请求、错误和部署变更，默认总时限 120 秒；基础取证后由 LLM 最多追加 5 轮只读查询；Worker 重试复用同一报告，生成 Incident、结构化报告和可审计证据链。
 - **部署**：Docker Compose、Helm、kind 部署；Worker 使用最小只读 RBAC 查询 Kubernetes。Milvus/MinIO/etcd 在当前 kind 配置中默认不部署。
 
 ## 技术栈
@@ -242,9 +242,13 @@ Prometheus: http://<虚拟机IP>:30909
 
 ## 使用监控与 SRE Agent
 
-监控后台和 SRE Agent 都在管理员登录后的前端管理台中：进入 `/admin/monitor` 查看慢请求、错误事件、队列与 AI 调用；在侧栏进入 **SRE 诊断 → 手动触发**（`/admin/ops/diagnose`），填写可选的服务名和告警名后提交。任务会写入 `ops_tasks` Redis Stream，由 `techmind-worker` 异步执行；随后在 **SRE 诊断 → 诊断报告**（`/admin/ops/reports`）查看状态、Prometheus 指标证据、根因与处理建议。
+监控后台和 SRE Agent 都在管理员登录后的前端管理台中：进入 `/admin/monitor` 查看慢请求、错误事件、队列与 AI 调用。Alertmanager 推送 firing 告警后，Server 会按 `alert_id + startsAt` 原子去重并自动写入 `ops_tasks`；也可在 **SRE 诊断 → 手动触发**（`/admin/ops/diagnose`）主动提交。任务由 `techmind-worker` 异步执行，失败重试继续使用同一个 `task_key` 和报告；在 **SRE 诊断 → 诊断报告**（`/admin/ops/reports`）查看状态、时间窗证据、根因、可复制的只读排查命令、需审批的修改方案、修改后验证命令和回滚命令。
+
+Agent 只生成操作手册，不执行其中任何命令。排查与验证命令必须通过只读白名单和单命令安全过滤；修改、扩缩容、发布与回滚建议始终标记为“需要人工审批”。删除资源、读取 Secret、清库、命令管道/重定向以及包含凭据的命令不会保存到报告。
 
 Prometheus 用于核实采集是否正常：访问 `http://<虚拟机IP>:30909/targets`，确认 `techmind-server` 和 `techmind-worker` 目标为 **UP**；在 Graph 页面查询 `http_requests_total` 或 `http_request_duration_seconds_count`。访问论坛、搜索和管理端 API 后，这些指标应增长。告警规则满足持续时间后由 Alertmanager 携带内部 Webhook Bearer Token 回调 `/api/v1/alerts/webhook`，并出现在 **告警中心**；也可从单条告警详情直接触发诊断。
+
+SRE 行为可通过 `ops.autoDiagnose`、`ops.diagnoseTimeoutSec`、`ops.evidenceWindowMin` 配置，或分别使用 `TECHMIND_OPS_AUTO_DIAGNOSE`、`TECHMIND_OPS_DIAGNOSE_TIMEOUT_SEC`、`TECHMIND_OPS_EVIDENCE_WINDOW_MIN` 覆盖。
 
 ### 配置 AI 与 Webhook 密钥
 
@@ -305,3 +309,16 @@ go build ./...
 - **后端**（阶段1-10）：Go/Gin API Server + Worker，论坛业务 + AI + 可观测 + 告警 + SRE Agent。
 - **前端**（阶段11-12）：React 19 + Vite + TypeScript，论坛浅色主题 + 管理后台深色主题，前后端接口已对齐。
 - **部署**（阶段13）：Docker Compose + Helm Chart + kind 集群一键部署脚本。
+
+### 2026-07-17 SRE 可靠性迭代
+
+- 告警 webhook 对 firing 告警自动诊断，Redis Lua 原子去重。
+- 诊断任务新增 `task_key` 和时间窗，Worker 重试/崩溃接管复用同一报告。
+- Prometheus Range、慢请求、错误事件和部署变更按告警窗口取证；补齐主要告警的 PromQL 模板。
+- Agent 增加可配置总超时，Kubernetes 客户端增加 10 秒请求超时。
+- Runbook 索引改由 AI Stream Worker 执行，获得重试、死信和 stale claim 能力。
+- 修复 Compose Prometheus 地址、规则挂载、Embedding Key 注入及管理端队列/变更展示契约。
+- 新增数据库迁移 `002_sre_agent_reliability.sql`；升级已有环境前必须执行。
+- 报告新增结构化排查命令、修改方案、验证与回滚步骤；修复旧自由文本解析把证据误当建议的问题。
+- 操作指令经过只读白名单、危险命令和敏感信息过滤，所有变更与回滚均强制人工审批，Agent 不自动执行。
+- 新增数据库迁移 `003_sre_action_guidance.sql`；升级已有环境时在 `002` 之后执行。

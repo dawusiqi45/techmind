@@ -14,6 +14,11 @@ secrets:
   embeddingApiKey: ""
   alertWebhookToken: "techmind-kind-alert-webhook"
 
+ops:
+  autoDiagnose: true
+  diagnoseTimeoutSec: 120
+  evidenceWindowMin: 30
+
 worker:
   replicaCount: 1
   image:

@@ -1,6 +1,9 @@
 package mysql
 
 import (
+	"context"
+	"time"
+
 	"techmind/internal/model"
 
 	"gorm.io/gorm"
@@ -41,6 +44,19 @@ func ListSlowRequests(page, pageSize int) ([]*model.MonitorSlowRequest, int, err
 	return list, int(total), err
 }
 
+// ListSlowRequestsInWindow 查询诊断时间窗内的慢请求，避免混入无关历史样本。
+func ListSlowRequestsInWindow(ctx context.Context, start, end time.Time, limit int) ([]*model.MonitorSlowRequest, int, error) {
+	q := DB.WithContext(ctx).Model(&model.MonitorSlowRequest{}).
+		Where("created_at BETWEEN ? AND ?", start, end)
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var list []*model.MonitorSlowRequest
+	err := q.Order("created_at DESC").Limit(limit).Find(&list).Error
+	return list, int(total), err
+}
+
 // ListErrorEvents 分页查询错误事件（按更新时间倒序）
 func ListErrorEvents(source string, page, pageSize int) ([]*model.MonitorErrorEvent, int, error) {
 	offset := (page - 1) * pageSize
@@ -57,3 +73,18 @@ func ListErrorEvents(source string, page, pageSize int) ([]*model.MonitorErrorEv
 	return list, int(total), err
 }
 
+// ListErrorEventsInWindow 查询时间窗内有更新的聚合错误事件。
+func ListErrorEventsInWindow(ctx context.Context, source string, start, end time.Time, limit int) ([]*model.MonitorErrorEvent, int, error) {
+	q := DB.WithContext(ctx).Model(&model.MonitorErrorEvent{}).
+		Where("updated_at BETWEEN ? AND ?", start, end)
+	if source != "" {
+		q = q.Where("source = ?", source)
+	}
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var list []*model.MonitorErrorEvent
+	err := q.Order("updated_at DESC").Limit(limit).Find(&list).Error
+	return list, int(total), err
+}

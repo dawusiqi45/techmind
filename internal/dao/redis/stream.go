@@ -23,6 +23,7 @@ const (
 	TaskArticleIndex       = "article.index"
 	TaskArticleReindex     = "article.reindex"
 	TaskArticleDeleteIndex = "article.delete_index"
+	TaskRunbookIndex       = "runbook.index"
 )
 
 // EnqueueAITask 向 AI 任务 Stream 追加一条任务消息

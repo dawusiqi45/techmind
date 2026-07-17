@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
-	"time"
 
 	"techmind/internal/agent/mcp"
 	aiModel "techmind/internal/ai/model"
@@ -30,15 +29,17 @@ func runEvidenceLoop(ctx context.Context, input DiagnoseInput, evidence mcp.Evid
 		var next mcp.Evidence
 		switch decision.Tool {
 		case "prometheus_range_query":
-			next = recorder.execute(ctx, decision.Tool, decision.Reason, func() mcp.Evidence { return mcp.PrometheusRangeSnapshot(ctx, input.AlertName, time.Now()) })
+			next = recorder.execute(ctx, decision.Tool, decision.Reason, func() mcp.Evidence {
+				return mcp.PrometheusRangeSnapshot(ctx, input.AlertName, input.WindowStart, input.WindowEnd)
+			})
 		case "kubernetes_snapshot":
 			next = recorder.execute(ctx, decision.Tool, decision.Reason, func() mcp.Evidence { return mcp.KubernetesSnapshot(ctx, "techmind", input.Service) })
 		case "kubernetes_logs":
 			next = recorder.execute(ctx, decision.Tool, decision.Reason, func() mcp.Evidence { return mcp.KubernetesLogSnapshot(ctx, "techmind", input.Service) })
 		case "slow_request_query":
-			next = recorder.execute(ctx, decision.Tool, decision.Reason, func() mcp.Evidence { return mcp.SlowRequestQuery(ctx, 20) })
+			next = recorder.execute(ctx, decision.Tool, decision.Reason, func() mcp.Evidence { return mcp.SlowRequestQuery(ctx, 20, input.WindowStart, input.WindowEnd) })
 		case "error_event_query":
-			next = recorder.execute(ctx, decision.Tool, decision.Reason, func() mcp.Evidence { return mcp.ErrorEventQuery(ctx, "", 20) })
+			next = recorder.execute(ctx, decision.Tool, decision.Reason, func() mcp.Evidence { return mcp.ErrorEventQuery(ctx, "", 20, input.WindowStart, input.WindowEnd) })
 		case "redis_stream_stats":
 			next = recorder.execute(ctx, decision.Tool, decision.Reason, func() mcp.Evidence { return mcp.RedisStreamStats(ctx) })
 		default:

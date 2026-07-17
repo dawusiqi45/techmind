@@ -3,14 +3,14 @@ package controller
 import (
 	"strconv"
 
-	"techmind/internal/agent"
 	mysqlDAO "techmind/internal/dao/mysql"
+	redisDAO "techmind/internal/dao/redis"
 	"techmind/internal/model"
 	"techmind/internal/pkg/response"
 	"techmind/internal/pkg/snowflake"
+	"techmind/internal/worker"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 )
 
 // CreateRunbook POST /api/v1/admin/runbooks
@@ -38,17 +38,14 @@ func CreateRunbook(c *gin.Context) {
 		return
 	}
 
-	// 异步触发 Milvus 向量索引
-	go func() {
-		if err := agent.IndexRunbook(c.Request.Context(), rb.ID, rb.Title, rb.Content); err != nil {
-			zap.L().Warn("index runbook failed", zap.Int64("id", rb.ID), zap.Error(err))
-			_ = mysqlDAO.UpdateRunbookIndexStatus(rb.ID, -1)
-			return
-		}
-		_ = mysqlDAO.UpdateRunbookIndexStatus(rb.ID, 1)
-	}()
+	// 交给 Redis Stream Worker 执行，复用既有重试、死信和崩溃接管能力。
+	if err := worker.EnqueueTask(c.Request.Context(), redisDAO.TaskRunbookIndex, rb.ID, nil); err != nil {
+		_ = mysqlDAO.UpdateRunbookIndexStatus(rb.ID, -1)
+		response.Fail(c, response.CodeServerError)
+		return
+	}
 
-	response.OK(c, gin.H{"id": strconv.FormatInt(rb.ID, 10)})
+	response.OK(c, gin.H{"id": strconv.FormatInt(rb.ID, 10), "index_status": 0})
 }
 
 // ListRunbooks GET /api/v1/admin/runbooks

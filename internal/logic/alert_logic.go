@@ -11,7 +11,9 @@ import (
 	"techmind/internal/alert"
 	mysqlDAO "techmind/internal/dao/mysql"
 	"techmind/internal/model"
+	"techmind/internal/pkg/settings"
 	"techmind/internal/pkg/snowflake"
+	"techmind/internal/worker"
 )
 
 // AlertmanagerPayload 是 Alertmanager webhook POST 的顶层结构
@@ -89,7 +91,22 @@ func upsertAlert(a AlertmanagerAlert) error {
 		return err
 	}
 
-	// 异步执行告警增强，失败不阻断
+	// firing 告警默认自动触发诊断。Redis Lua 使用告警 ID + startsAt 去重，
+	// Alertmanager 重试不会创建重复任务，重新触发的新 startsAt 仍可生成新诊断。
+	if status == model.AlertStatusFiring && settings.Conf.Ops.AutoDiagnose {
+		observedAt := a.StartsAt
+		if observedAt.IsZero() {
+			observedAt = event.LastSeenAt
+		}
+		dedupSeed := fmt.Sprintf("alert:%d:%d", event.ID, observedAt.UnixNano())
+		enqueueCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := worker.EnqueueDiagnoseTaskAt(enqueueCtx, event.ID, "alert", event.Service, event.AlertName, observedAt, dedupSeed); err != nil {
+			return fmt.Errorf("enqueue automatic diagnosis: %w", err)
+		}
+	}
+
+	// 自动诊断成功入队后再异步增强，避免 Alertmanager 重试造成重复增强记录。
 	go alert.EnrichAlert(context.Background(), event)
 	return nil
 }

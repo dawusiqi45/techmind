@@ -11,10 +11,13 @@ export default function OpsReports() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    opsApi.listReports({ page, page_size: 20 }).then(r => {
-      setData(r.data.data?.list || [])
-      setTotal(r.data.data?.total || 0)
-    })
+    const load = () => opsApi.listReports({ page, page_size: 20 }).then(r => {
+        setData(r.data.data?.list || [])
+        setTotal(r.data.data?.total || 0)
+      })
+    load()
+    const timer = setInterval(load, 5000)
+    return () => clearInterval(timer)
   }, [page])
 
   return (

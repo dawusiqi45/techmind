@@ -183,6 +183,12 @@ echo "  应用可重复执行的数据库升级..."
 kubectl exec -i -n ${NAMESPACE} mysql-0 -- \
   mysql --protocol=TCP -h 127.0.0.1 -P 3306 -utechmind -ptechmind techmind \
   < "${PROJECT_DIR}/scripts/sql/migrations/001_sre_agent_audit_and_incident.sql"
+kubectl exec -i -n ${NAMESPACE} mysql-0 -- \
+  mysql --protocol=TCP -h 127.0.0.1 -P 3306 -utechmind -ptechmind techmind \
+  < "${PROJECT_DIR}/scripts/sql/migrations/002_sre_agent_reliability.sql"
+kubectl exec -i -n ${NAMESPACE} mysql-0 -- \
+  mysql --protocol=TCP -h 127.0.0.1 -P 3306 -utechmind -ptechmind techmind \
+  < "${PROJECT_DIR}/scripts/sql/migrations/003_sre_action_guidance.sql"
 echo "  等待 Redis 就绪..."
 kubectl rollout status deployment/redis -n ${NAMESPACE}
 

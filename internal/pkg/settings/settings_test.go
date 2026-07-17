@@ -13,9 +13,12 @@ func TestInitReadsStandardSecretEnvironmentNames(t *testing.T) {
 	t.Setenv("TECHMIND_AI_EMBEDDING_API_KEY", "embedding-from-env")
 	t.Setenv("TECHMIND_AI_EMBEDDING_MODEL", "example-embedding")
 	t.Setenv("TECHMIND_ALERT_WEBHOOK_TOKEN", "webhook-from-env")
+	t.Setenv("TECHMIND_OPS_AUTO_DIAGNOSE", "true")
+	t.Setenv("TECHMIND_OPS_DIAGNOSE_TIMEOUT_SEC", "90")
+	t.Setenv("TECHMIND_OPS_EVIDENCE_WINDOW_MIN", "20")
 
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
-	config := "app:\n  mode: local\nai:\n  llmBaseURL: ''\n  llmApiKey: ''\n  llmModel: ''\n  embeddingApiKey: ''\n  embeddingModel: ''\nalert:\n  webhookToken: ''\n"
+	config := "app:\n  mode: local\nai:\n  llmBaseURL: ''\n  llmApiKey: ''\n  llmModel: ''\n  embeddingApiKey: ''\n  embeddingModel: ''\nalert:\n  webhookToken: ''\nops:\n  autoDiagnose: false\n  diagnoseTimeoutSec: 120\n  evidenceWindowMin: 30\n"
 	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
@@ -38,5 +41,8 @@ func TestInitReadsStandardSecretEnvironmentNames(t *testing.T) {
 	}
 	if Conf.Alert.WebhookToken != "webhook-from-env" {
 		t.Fatalf("webhook token was not read from standard env name: %q", Conf.Alert.WebhookToken)
+	}
+	if !Conf.Ops.AutoDiagnose || Conf.Ops.DiagnoseTimeoutSec != 90 || Conf.Ops.EvidenceWindowMin != 20 {
+		t.Fatalf("ops settings were not read from standard env names: %#v", Conf.Ops)
 	}
 }

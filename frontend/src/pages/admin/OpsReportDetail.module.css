@@ -8,3 +8,8 @@
 .timelineItem span { margin-left: 8px; color: #8b949e; font-size: 12px; }
 .timelineItem p { margin: 6px 0; color: #8b949e; }
 .timelineItem pre { max-height: 260px; overflow: auto; padding: 10px; margin: 0; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+.approvalWarning { margin-bottom: 12px; }
+.guidanceItem { display: block !important; }
+.guidanceHeader { display: flex; justify-content: space-between; gap: 12px; width: 100%; margin-bottom: 8px; }
+.command { display: block; width: 100%; padding: 10px 12px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; white-space: pre-wrap; word-break: break-word; }
+.expected { margin: 8px 0 0; color: #8b949e; }

@@ -7,13 +7,15 @@ API Server / Worker 埋点 → Prometheus → Alertmanager
                                         ↓ Bearer Webhook
 告警中心 ← MySQL ← TechMind Server ← /api/v1/alerts/webhook
                                         ↓
-管理员手动触发或告警详情触发 → ops_tasks → Worker
+firing 告警自动原子去重入队 / 管理员手动触发 → ops_tasks → Worker
 → 慢请求、错误事件、Redis、Prometheus、Kubernetes、Helm、变更、Runbook → LLM → ops_report
                                                                         ↓
-                                                   incident + ops_tool_call（证据链审计）
+                          只读排查命令 + 需审批修改方案 + 验证/回滚命令 + ops_tool_call 审计
 ```
 
-Agent 是只读诊断报告生成器：它不修改集群或业务数据。告警触发的诊断会自动创建或复用一个开放的 `incident`，并把每次真实工具调用写入 `ops_tool_call`；手动诊断不会创建 Incident。基础取证完成后，模型最多再选择 5 次只读查询。报告为 `done` 才代表任务成功；`failed` 时优先检查 Worker 日志和 LLM 配置。诊断任务失败会最多重试 3 次，随后进入 `tm:stream:ops_tasks:dead` 死信队列供人工复盘。
+Agent 是只读诊断报告生成器：它不修改集群或业务数据。firing 告警按 `alert_id + startsAt` 在 Redis 中原子去重并自动入队；告警诊断创建或复用开放的 `incident`。任务携带唯一 `task_key`，失败重试和 stale claim 复用同一份 `ops_report`。慢请求、错误、Prometheus Range 和部署变更按告警时间窗查询；默认诊断总时限 120 秒。模型最多再选择 5 次只读查询。报告为 `done` 才代表成功；失败最多重试 3 次，随后进入 `tm:stream:ops_tasks:dead`。
+
+报告操作区分为四类：`verification_commands` 和 `validation_commands` 只接受白名单内的单条只读命令；`change_plan` 和 `rollback_commands` 仅作为建议，后端强制标记 `approval_required=true`。命令连接、管道、重定向、命令替换、读取 Secret、删除资源、清库、主机重启和含凭据命令会被过滤。管理员复制执行前仍必须核对环境、命名空间、资源名、版本、容量和备份。
 
 ```bash
 kubectl logs -n techmind deployment/techmind-worker --tail=100
@@ -67,9 +69,17 @@ kubectl rollout status deployment/techmind-frontend -n techmind
 kubectl exec -i -n techmind mysql-0 -- \
   mysql --protocol=TCP -h 127.0.0.1 -P 3306 -utechmind -ptechmind techmind \
   < scripts/sql/migrations/001_sre_agent_audit_and_incident.sql
+
+kubectl exec -i -n techmind mysql-0 -- \
+  mysql --protocol=TCP -h 127.0.0.1 -P 3306 -utechmind -ptechmind techmind \
+  < scripts/sql/migrations/002_sre_agent_reliability.sql
+
+kubectl exec -i -n techmind mysql-0 -- \
+  mysql --protocol=TCP -h 127.0.0.1 -P 3306 -utechmind -ptechmind techmind \
+  < scripts/sql/migrations/003_sre_action_guidance.sql
 ```
 
-`deploy/kind/deploy.sh` 已在 MySQL 就绪后自动执行这份 migration；日常增量部署则需要按上面的命令显式执行。它只会创建缺失的审计表和 `ops_report.incident_id`，可安全重复运行。
+`deploy/kind/deploy.sh` 已在 MySQL 就绪后依次执行三份 migration；日常增量部署需要在升级镜像前显式执行。`002` 会为既有报告生成 `legacy:<id>` 幂等键，再创建 `uk_task_key` 唯一索引；`003` 为既有报告补四个空 JSON 数组后增加结构化操作字段。三份迁移均可重复运行。
 
 LLM 兼容服务地址和模型名也可随 Helm 更新覆盖；API Key 始终经 `Secret` 注入：
 

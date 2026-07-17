@@ -48,6 +48,11 @@ monitor:
 alert:
   webhookToken: "" # 通过 TECHMIND_ALERT_WEBHOOK_TOKEN 注入
 
+ops:
+  autoDiagnose: true
+  diagnoseTimeoutSec: 120
+  evidenceWindowMin: 30
+
 rateLimit:
   enabled: true
   requestsPerMin: 60

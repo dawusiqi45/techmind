@@ -10,7 +10,7 @@ import (
 )
 
 // UpsertAlertEvent 写入或去重更新告警事件
-// fingerprint 唯一：已存在则更新 repeat_count/last_seen_at/status；否则插入
+// fingerprint 唯一：已存在则更新本次通知携带的状态与上下文；否则插入。
 func UpsertAlertEvent(event *model.AlertEvent) error {
 	var exists model.AlertEvent
 	err := DB.Where("fingerprint = ?", event.Fingerprint).First(&exists).Error
@@ -28,10 +28,20 @@ func UpsertAlertEvent(event *model.AlertEvent) error {
 		"repeat_count": gorm.Expr("repeat_count + 1"),
 		"last_seen_at": event.LastSeenAt,
 		"status":       event.Status,
+		"alert_name":   event.AlertName,
+		"service":      event.Service,
+		"endpoint":     event.Endpoint,
+		"severity":     event.Severity,
+		"labels":       event.Labels,
+		"annotations":  event.Annotations,
 	}
 	if event.Status == model.AlertStatusResolved {
 		now := time.Now()
 		updates["resolved_at"] = now
+	} else if exists.Status == model.AlertStatusResolved {
+		// 同一 fingerprint 恢复后再次触发时，开始一轮新的诊断时间线。
+		updates["first_seen_at"] = event.FirstSeenAt
+		updates["resolved_at"] = nil
 	}
 	if err := DB.Model(&exists).Updates(updates).Error; err != nil {
 		return err

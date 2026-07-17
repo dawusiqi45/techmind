@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mysql:
     image: mysql:8.0
@@ -87,6 +85,7 @@ services:
       - "9090:9090"
     volumes:
       - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../prometheus/techmind-rules.yml:/etc/prometheus/techmind-rules.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -123,6 +122,8 @@ services:
       - TECHMIND_MILVUS_ADDR=milvus-standalone:19530
       - TECHMIND_LOG_LEVEL=info
       - TECHMIND_AI_LLM_API_KEY=${TECHMIND_LLM_API_KEY:-}
+      - TECHMIND_AI_EMBEDDING_API_KEY=${TECHMIND_EMBEDDING_API_KEY:-}
+      - TECHMIND_MONITOR_PROMETHEUS_URL=http://prometheus:9090
       - TECHMIND_ALERT_WEBHOOK_TOKEN=techmind-compose-alert-webhook
     ports:
       - "8080:8080"
@@ -163,6 +164,8 @@ services:
       - TECHMIND_MILVUS_ADDR=milvus-standalone:19530
       - TECHMIND_LOG_LEVEL=info
       - TECHMIND_AI_LLM_API_KEY=${TECHMIND_LLM_API_KEY:-}
+      - TECHMIND_AI_EMBEDDING_API_KEY=${TECHMIND_EMBEDDING_API_KEY:-}
+      - TECHMIND_MONITOR_PROMETHEUS_URL=http://prometheus:9090
       - TECHMIND_ALERT_WEBHOOK_TOKEN=techmind-compose-alert-webhook
     depends_on:
       mysql:

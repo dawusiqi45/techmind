@@ -6,9 +6,9 @@
 
 ## 当前实现状态（2026-07）
 
-已实现：告警诊断自动聚合到 `incident`、`ops_report.incident_id` 回链；基础取证（MySQL/Redis/Prometheus/Kubernetes/Helm）与模型规划的追加取证；最多 5 轮追加只读查询；受限 Pod 日志；`ops_tool_call` 审计和管理台证据链；Worker ServiceAccount 的最小只读 RBAC。
+已实现：firing 告警按 `alert_id + startsAt` 自动、原子去重入队；诊断任务携带 `task_key` 与证据时间窗，Worker 重试和 stale claim 复用同一份报告；告警诊断自动聚合到 `incident`、`ops_report.incident_id` 回链；慢请求、错误、Prometheus Range 与部署变更按告警窗口查询；基础取证（MySQL/Redis/Prometheus/Kubernetes/Helm）与模型规划的追加取证；最多 5 轮追加只读查询；可配置 120 秒总超时、Kubernetes 10 秒请求超时；受限 Pod 日志；`ops_tool_call` 审计和管理台证据链；Runbook 索引进入可靠 Worker 队列；最终报告生成结构化的只读排查命令、需审批修改方案、验证命令和回滚命令，并经过危险命令与敏感信息过滤。
 
-尚未实现、保留为后续演进：独立的 `diagnosis_run` / `diagnosis_step` / `hypothesis` 表、可配置 PromQL 模板和 Milvus 向量检索的集群部署。Milvus 部署不属于本次变更。
+尚未实现、保留为后续演进：独立的 `diagnosis_run` / `diagnosis_step` / `hypothesis` 表、工具调用显式 success/error 状态、服务级日志/错误关联、更强的历史报告相似度检索和 Milvus 向量检索的集群部署。
 
 它要回答的不只是“发生了什么”，还要回答：
 
@@ -16,11 +16,12 @@
 - Agent 查了哪些系统、使用了哪些参数；
 - 每条根因结论由哪些实际证据支撑；
 - 证据不足时下一步应该继续查什么，而不是编造结论。
+- 后续人员可以复制哪些只读命令，修改什么、如何验证以及如何回滚。
 
 ## 2. 不做的内容
 
 - 不构建通用 Agent 平台，不引入 CRD、Controller Reconcile、A2A 或 Python/Go 双运行时。
-- 不允许 Agent 直接执行 `kubectl delete`、扩缩容、Helm upgrade 等写操作。
+- 不允许 Agent 直接执行任何报告命令；它可以生成需人工审批的扩缩容、发布或回滚建议，但不能生成删除资源、读取 Secret、清库或主机重启命令。
 - 不提供任意 Shell/SSH 工具；Helm 和日志能力必须封装成参数受限的只读工具。
 
 这保证方案与 TechMind 的 Go + Eino + Redis Stream + MySQL 架构保持一致。
@@ -39,10 +40,10 @@ AgentLoop（最多 N 轮、总时限 M 秒）
   4. 写入 DiagnosisStep + OpsToolCall + Evidence
   5. LLM 判断：继续取证 / 输出最终结论
         ↓
-结构化报告：影响、时间线、根因候选、置信度、证据、建议
+结构化报告：影响、时间线、根因候选、证据、只读排查命令、修改/验证/回滚方案
 ```
 
-停止条件：模型输出 `final`、证据已达到置信度阈值、连续两轮没有新信息、达到工具调用预算或总超时。
+当前停止条件：模型输出 `final`、模型输出不可解析、达到 5 轮预算或达到诊断总超时。证据置信度阈值和“连续两轮无新增信息”仍属于后续增强。
 
 ## 4. AgentLoop
 
@@ -79,7 +80,7 @@ type DiagnosisState struct {
 由现有 `AlertEvent`、`AlertEnrichment`、`DeploymentChange` 和手动输入构成：
 
 - 告警名、服务、端点、严重度、首次/最近发生时间；
-- 默认诊断窗口：告警首次发生前 15 分钟至当前；
+- 默认诊断窗口：以 Alertmanager `startsAt` 为锚点前后各 15 分钟，未来部分截断到当前；手动诊断默认最近 30 分钟；所有窗口最多 60 分钟；
 - 当前镜像、namespace、关联发布变更；
 - 已存在的慢请求、错误事件、队列与 Runbook 摘要。
 
@@ -121,7 +122,7 @@ type DiagnosisState struct {
 | 实体 | 关键字段 | 说明 |
 |---|---|---|
 | `incident` | `id, status, severity` + `incident_alert` | 当前已实现的故障生命周期，可关联多次诊断 |
-| `ops_report` | `id, incident_id, trigger_type, status` | 当前的一次诊断运行与最终报告 |
+| `ops_report` | `id, incident_id, trigger_type, status, verification_commands, change_plan, validation_commands, rollback_commands` | 当前的一次诊断运行、最终报告与人工操作手册 |
 | `ops_tool_call` | `id, report_id, tool_name, input, output, duration_ms` | 当前已实现，保存真实工具调用 |
 | `diagnosis_step` | `id, run_id, round, action, reason, status, duration_ms` | 后续拆分时引入 |
 | `evidence_item` | `id, run_id, source, observed_at, content, importance` | 可引用、可排序的证据 |
@@ -136,7 +137,8 @@ type DiagnosisState struct {
 1. **故障概览**：服务、告警、影响窗口、当前状态、最终置信度。
 2. **诊断时间线**：第几轮、为什么要查、调用什么工具、耗时、成功/失败。
 3. **证据面板**：Prometheus 趋势摘要、Pod/Event、日志模式、Helm 变更，可展开查看受限原始结果。
-4. **根因与建议**：按置信度排序的候选根因，明确标注“已确认”“高可能”“待验证”。
+4. **根因与建议**：按置信度区分结论，明确标注证据不足的部分。
+5. **操作手册**：可复制只读排查命令、需审批的修改步骤、修改后验证命令与回滚命令；每项展示目的、风险和判断标准。
 
 管理员可看到“停止原因”：得到结论、无新增证据、达到工具预算或超时。
 
@@ -165,5 +167,6 @@ type DiagnosisState struct {
 - 对 `SearchLatencyHigh`，报告至少包含 Prometheus 时间范围证据、Pod/Event 结果、一次变更关联判断。
 - 每次工具调用在数据库和前端时间线都有名称、参数摘要、耗时、状态和结果摘要。
 - Agent 无法调用未注册工具、跨 namespace 查询、写操作、无限时间范围或超过预算的日志查询。
+- Agent 生成的只读命令必须通过白名单；修改和回滚必须标记人工审批，危险、复合或含凭据命令不得入库。
 - LLM、Prometheus、K8s 任一依赖失败时，报告明确标注“证据不足/工具失败”，不编造根因。
 - 正常或异常案例均可重复演示，并能在 Grafana/Prometheus 中交叉验证。

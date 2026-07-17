@@ -39,6 +39,7 @@ data:
             for: 2m
             labels:
               severity: warning
+              service: techmind-server
             annotations:
               summary: "搜索接口延迟过高"
           - alert: RedisStreamBacklogHigh
@@ -46,6 +47,7 @@ data:
             for: 5m
             labels:
               severity: warning
+              service: techmind-worker
             annotations:
               summary: "Redis Stream 积压过多"
           - alert: AICallFailureHigh
@@ -53,5 +55,6 @@ data:
             for: 3m
             labels:
               severity: critical
+              service: techmind-server
             annotations:
               summary: "AI 调用失败率过高"
