@@ -178,7 +178,7 @@ func collectEvidence(ctx context.Context, input DiagnoseInput, recorder *toolRec
 	merge(combined, recorder.execute(ctx, "prometheus_range_query", "识别告警时间窗内指标趋势", func() mcp.Evidence {
 		return mcp.PrometheusRangeSnapshot(ctx, input.AlertName, input.WindowStart, input.WindowEnd)
 	}))
-	merge(combined, recorder.execute(ctx, "kubernetes_snapshot", "检查 Pod、Event、Deployment 与 Helm 历史", func() mcp.Evidence { return mcp.KubernetesSnapshot(ctx, "techmind", input.Service) }))
+	merge(combined, recorder.execute(ctx, "kubernetes_snapshot", "检查 Pod、Event 与 Deployment", func() mcp.Evidence { return mcp.KubernetesSnapshot(ctx, "techmind", input.Service) }))
 
 	return combined
 }

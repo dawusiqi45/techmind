@@ -19,6 +19,8 @@ export const authApi = {
   },
   getFavorites: (params?: { page?: number; page_size?: number }) =>
     apiClient.get('/user/favorites', { params }),
-  getLikes: (params?: { page?: number; page_size?: number }) =>
-    apiClient.get('/user/likes', { params }),
+	getLikes: (params?: { page?: number; page_size?: number }) =>
+		apiClient.get('/user/likes', { params }),
+	getArticles: (params?: { page?: number; page_size?: number }) =>
+		apiClient.get('/user/articles', { params }),
 }

@@ -6,7 +6,7 @@
 
 ## 当前实现状态（2026-07）
 
-已实现：firing 告警按 `alert_id + startsAt` 自动、原子去重入队；诊断任务携带 `task_key` 与证据时间窗，Worker 重试和 stale claim 复用同一份报告；告警诊断自动聚合到 `incident`、`ops_report.incident_id` 回链；慢请求、错误、Prometheus Range 与部署变更按告警窗口查询；基础取证（MySQL/Redis/Prometheus/Kubernetes/Helm）与模型规划的追加取证；最多 5 轮追加只读查询；可配置 120 秒总超时、Kubernetes 10 秒请求超时；受限 Pod 日志；`ops_tool_call` 审计和管理台证据链；Runbook 索引进入可靠 Worker 队列；最终报告生成结构化的只读排查命令、需审批修改方案、验证命令和回滚命令，并经过危险命令与敏感信息过滤。
+已实现：firing 告警按 `alert_id + startsAt` 自动、原子去重入队；诊断任务携带 `task_key` 与证据时间窗，Worker 重试和 stale claim 复用同一份报告；告警诊断自动聚合到 `incident`、`ops_report.incident_id` 回链；慢请求、错误、Prometheus Range 与部署变更按告警窗口查询；基础取证（MySQL/Redis/Prometheus/Kubernetes）与模型规划的追加取证；最多 5 轮追加只读查询；可配置 120 秒总超时、Kubernetes 10 秒请求超时；受限 Pod 日志；`ops_tool_call` 审计和管理台证据链；Runbook 索引进入可靠 Worker 队列；最终报告生成结构化的只读排查命令、需审批修改方案、验证命令和回滚命令，并经过危险命令与敏感信息过滤。
 
 尚未实现、保留为后续演进：独立的 `diagnosis_run` / `diagnosis_step` / `hypothesis` 表、工具调用显式 success/error 状态、服务级日志/错误关联、更强的历史报告相似度检索和 Milvus 向量检索的集群部署。
 
@@ -90,7 +90,7 @@ type DiagnosisState struct {
 
 1. Prometheus Range Query 确定 QPS、错误率、P95/P99 的异常开始时间；
 2. 根据服务名查询 Pod/Deployment/Event；
-3. 根据异常窗口查询近期 Helm 发布与 `deployment_change`；
+3. 根据异常窗口查询 `deployment_change`；Helm 发布历史不再通过 Secret 读取；
 4. 后续由模型依据证据选择日志、依赖或 Runbook 工具。
 
 对 `SearchLatencyHigh`，典型路径是：Prometheus 延迟趋势 → Server Pod/Event → Milvus/AI 调用指标 → 相关日志 → 发布变更。
@@ -158,7 +158,7 @@ type DiagnosisState struct {
 
 ### Phase 3：Helm、日志与证据时间线
 
-- 增加只读 Helm 发布历史与差异摘要，不提供任意 CLI。
+- 后续可从非 Secret 数据源增加只读 Helm 发布历史与差异摘要，不提供任意 CLI。
 - 增加有行数/时间窗限制的 Pod 日志工具及敏感信息脱敏。
 - 完成诊断时间线、根因置信度与证据引用 UI。
 

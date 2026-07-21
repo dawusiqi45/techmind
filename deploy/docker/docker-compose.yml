@@ -3,17 +3,17 @@ services:
     image: mysql:8.0
     container_name: techmind-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_ROOT_PASSWORD: ${TECHMIND_MYSQL_ROOT_PASSWORD:?set TECHMIND_MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: techmind
       MYSQL_USER: techmind
-      MYSQL_PASSWORD: techmind
+      MYSQL_PASSWORD: ${TECHMIND_MYSQL_PASSWORD:?set TECHMIND_MYSQL_PASSWORD}
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ../../scripts/sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "techmind", "--password=techmind"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u techmind --password=$$MYSQL_PASSWORD"]
       interval: 5s
       timeout: 10s
       retries: 10
@@ -24,7 +24,7 @@ services:
     image: redis:7-alpine
     container_name: techmind-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -74,7 +74,7 @@ services:
       - etcd
       - minio
     ports:
-      - "19530:19530"
+      - "127.0.0.1:19530:19530"
     networks:
       - techmind-net
 
@@ -82,7 +82,7 @@ services:
     image: prom/prometheus:v2.55.0
     container_name: techmind-prometheus
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ../prometheus/techmind-rules.yml:/etc/prometheus/techmind-rules.yml:ro
@@ -99,9 +99,10 @@ services:
     image: prom/alertmanager:v0.27.0
     container_name: techmind-alertmanager
     ports:
-      - "9093:9093"
+      - "127.0.0.1:9093:9093"
     volumes:
       - ../prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ${TECHMIND_ALERT_WEBHOOK_TOKEN_FILE:?set TECHMIND_ALERT_WEBHOOK_TOKEN_FILE}:/etc/alertmanager/secrets/webhook-token:ro
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
@@ -117,16 +118,19 @@ services:
     container_name: techmind-server
     environment:
       - TECHMIND_SERVER_ADDR=:8080
-      - TECHMIND_MYSQL_DSN=techmind:techmind@tcp(mysql:3306)/techmind?parseTime=true&charset=utf8mb4&loc=Local
+      - TECHMIND_SERVER_TRUSTED_PROXIES=172.16.0.0/12
+      - TECHMIND_APP_MODE=prod
+      - TECHMIND_JWT_SECRET=${TECHMIND_JWT_SECRET:?set TECHMIND_JWT_SECRET}
+      - TECHMIND_MYSQL_DSN=techmind:${TECHMIND_MYSQL_PASSWORD:?set TECHMIND_MYSQL_PASSWORD}@tcp(mysql:3306)/techmind?parseTime=true&charset=utf8mb4&loc=Local
       - TECHMIND_REDIS_ADDR=redis:6379
       - TECHMIND_MILVUS_ADDR=milvus-standalone:19530
       - TECHMIND_LOG_LEVEL=info
       - TECHMIND_AI_LLM_API_KEY=${TECHMIND_LLM_API_KEY:-}
       - TECHMIND_AI_EMBEDDING_API_KEY=${TECHMIND_EMBEDDING_API_KEY:-}
       - TECHMIND_MONITOR_PROMETHEUS_URL=http://prometheus:9090
-      - TECHMIND_ALERT_WEBHOOK_TOKEN=techmind-compose-alert-webhook
+      - TECHMIND_ALERT_WEBHOOK_TOKEN=${TECHMIND_ALERT_WEBHOOK_TOKEN:?set TECHMIND_ALERT_WEBHOOK_TOKEN}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       mysql:
         condition: service_healthy
@@ -159,14 +163,16 @@ services:
       target: worker
     container_name: techmind-worker
     environment:
-      - TECHMIND_MYSQL_DSN=techmind:techmind@tcp(mysql:3306)/techmind?parseTime=true&charset=utf8mb4&loc=Local
+      - TECHMIND_APP_MODE=prod
+      - TECHMIND_JWT_SECRET=${TECHMIND_JWT_SECRET:?set TECHMIND_JWT_SECRET}
+      - TECHMIND_MYSQL_DSN=techmind:${TECHMIND_MYSQL_PASSWORD:?set TECHMIND_MYSQL_PASSWORD}@tcp(mysql:3306)/techmind?parseTime=true&charset=utf8mb4&loc=Local
       - TECHMIND_REDIS_ADDR=redis:6379
       - TECHMIND_MILVUS_ADDR=milvus-standalone:19530
       - TECHMIND_LOG_LEVEL=info
       - TECHMIND_AI_LLM_API_KEY=${TECHMIND_LLM_API_KEY:-}
       - TECHMIND_AI_EMBEDDING_API_KEY=${TECHMIND_EMBEDDING_API_KEY:-}
       - TECHMIND_MONITOR_PROMETHEUS_URL=http://prometheus:9090
-      - TECHMIND_ALERT_WEBHOOK_TOKEN=techmind-compose-alert-webhook
+      - TECHMIND_ALERT_WEBHOOK_TOKEN=${TECHMIND_ALERT_WEBHOOK_TOKEN:?set TECHMIND_ALERT_WEBHOOK_TOKEN}
     depends_on:
       mysql:
         condition: service_healthy

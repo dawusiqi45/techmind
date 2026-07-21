@@ -12,10 +12,12 @@ image:
 
 # 仅用于开发演示。生产环境应通过外部 Secret 管理这些值，绝不提交真实 Key。
 secrets:
-  jwtSecret: "change-me-in-production"
+  jwtSecret: ""
   llmApiKey: ""
   embeddingApiKey: ""
   alertWebhookToken: ""
+  mysqlDSN: ""
+  redisPassword: ""
 
 # AI 服务地址和模型名可通过 Helm 覆盖；真实 Key 仅放在 secrets 中。
 ai:
@@ -34,9 +36,10 @@ ops:
 server:
   enabled: true
   replicaCount: 2
+  trustedProxies: []
 
   image:
-    repository: techmind
+    repository: techmind-server
     tag: "latest"
     pullPolicy: IfNotPresent
 
@@ -90,7 +93,7 @@ worker:
   replicaCount: 1
 
   image:
-    repository: techmind
+    repository: techmind-worker
     tag: "latest"
     pullPolicy: IfNotPresent
 
@@ -169,7 +172,7 @@ milvus:
 
 # ========== 外部配置 ==========
 externalMySQL:
-  enabled: true
+  enabled: false
   host: ""
   port: 3306
   database: "techmind"
@@ -177,13 +180,13 @@ externalMySQL:
   password: ""
 
 externalRedis:
-  enabled: true
+  enabled: false
   host: ""
   port: 6379
   password: ""
   db: 0
 
 externalMilvus:
-  enabled: true
+  enabled: false
   host: ""
   port: 19530

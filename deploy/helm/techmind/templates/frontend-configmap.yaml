@@ -1,0 +1,35 @@
+{{- if .Values.frontend.enabled }}
+{{- if not .Values.server.enabled }}
+{{- fail "frontend.enabled requires server.enabled because Nginx proxies API and uploads to the server" }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "techmind.fullname" . }}-frontend-nginx
+  labels:
+    {{- include "techmind.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location /api/ {
+            proxy_pass http://{{ include "techmind.fullname" . }}-server:{{ .Values.server.service.port }};
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        location /uploads/ {
+            proxy_pass http://{{ include "techmind.fullname" . }}-server:{{ .Values.server.service.port }};
+            proxy_set_header Host $host;
+        }
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+{{- end }}

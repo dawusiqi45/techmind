@@ -74,6 +74,11 @@ func CreateArticle(ctx context.Context, authorID int64, in *CreateArticleInput) 
 func GetArticleDetail(ctx context.Context, articleID int64) (*model.ArticleDetail, error) {
 	// 尝试缓存
 	if cached, err := redisDAO.GetArticleCache(ctx, articleID); err == nil && cached != nil {
+		if err := mysqlDAO.IncrViewCount(articleID); err == nil {
+			cached.ViewCount++
+			_ = redisDAO.DelArticleCache(ctx, articleID)
+			_ = redisDAO.UpdateHotScore(ctx, articleID, calcHotScore(cached.ViewCount, cached.LikeCount, cached.FavoriteCount, cached.CommentCount, cached.CreatedAt))
+		}
 		return cached, nil
 	}
 
@@ -88,12 +93,10 @@ func GetArticleDetail(ctx context.Context, articleID int64) (*model.ArticleDetai
 	tags, _ := mysqlDAO.GetTagsByArticleID(articleID)
 	a.Tags = tags
 
-	// 异步更新浏览数和热榜（失败不影响主流程）
-	go func() {
-		_ = mysqlDAO.IncrViewCount(articleID)
-		score := calcHotScore(a.ViewCount+1, a.LikeCount, a.FavoriteCount, a.CommentCount, a.CreatedAt)
-		_ = redisDAO.UpdateHotScore(context.Background(), articleID, score)
-	}()
+	if err := mysqlDAO.IncrViewCount(articleID); err == nil {
+		a.ViewCount++
+		_ = redisDAO.UpdateHotScore(ctx, articleID, calcHotScore(a.ViewCount, a.LikeCount, a.FavoriteCount, a.CommentCount, a.CreatedAt))
+	}
 
 	// 写缓存
 	_ = redisDAO.SetArticleCache(ctx, a)
@@ -110,6 +113,26 @@ func ListArticles(page, pageSize int) ([]*model.ArticleListItem, int, error) {
 		pageSize = 20
 	}
 	return mysqlDAO.ListArticles(page, pageSize)
+}
+
+func ListArticlesByTag(tagID int64, page, pageSize int) ([]*model.ArticleListItem, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 50 {
+		pageSize = 20
+	}
+	return mysqlDAO.ListArticlesByTag(tagID, page, pageSize)
+}
+
+func ListUserArticles(userID int64, page, pageSize int) ([]*model.ArticleListItem, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 50 {
+		pageSize = 20
+	}
+	return mysqlDAO.ListArticlesByAuthor(userID, page, pageSize)
 }
 
 // GetHotArticles 热榜前 N 篇

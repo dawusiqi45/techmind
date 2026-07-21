@@ -9,7 +9,7 @@ export default function Deployments() {
   const [open, setOpen] = useState(false)
   const [form] = Form.useForm()
 
-  const load = () => deploymentApi.list().then(r => setData(r.data.data || []))
+	const load = () => deploymentApi.list().then(r => setData(r.data.data?.list || []))
   useEffect(() => { load() }, [])
 
   async function handleCreate(values: any) {

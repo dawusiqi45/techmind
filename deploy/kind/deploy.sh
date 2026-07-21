@@ -171,6 +171,24 @@ kubectl apply -f "${SCRIPT_DIR}/mysql.yaml"
 kubectl apply -f "${SCRIPT_DIR}/redis.yaml"
 
 # Prometheus + Alertmanager (ConfigMap + Deployment)
+EXISTING_JWT_SECRET="$(kubectl get secret techmind-secret -n ${NAMESPACE} -o jsonpath='{.data.jwt-secret}' 2>/dev/null | base64 -d || true)"
+EXISTING_WEBHOOK_TOKEN="$(kubectl get secret techmind-alertmanager-webhook -n ${NAMESPACE} -o jsonpath='{.data.webhook-token}' 2>/dev/null | base64 -d || true)"
+if [ "${EXISTING_JWT_SECRET}" = "change-me-in-production" ] || [ ${#EXISTING_JWT_SECRET} -lt 32 ]; then
+  EXISTING_JWT_SECRET=""
+fi
+if [ ${#EXISTING_WEBHOOK_TOKEN} -lt 32 ]; then
+  EXISTING_WEBHOOK_TOKEN=""
+fi
+TECHMIND_JWT_SECRET="${TECHMIND_JWT_SECRET:-${EXISTING_JWT_SECRET:-$(openssl rand -hex 32)}}"
+TECHMIND_ALERT_WEBHOOK_TOKEN="${TECHMIND_ALERT_WEBHOOK_TOKEN:-${EXISTING_WEBHOOK_TOKEN:-$(openssl rand -hex 32)}}"
+if [ ${#TECHMIND_JWT_SECRET} -lt 32 ] || [ ${#TECHMIND_ALERT_WEBHOOK_TOKEN} -lt 32 ]; then
+  echo "JWT Secret 和 Webhook Token 必须至少 32 个字符" >&2
+  exit 1
+fi
+kubectl create secret generic techmind-alertmanager-webhook \
+  --namespace ${NAMESPACE} \
+  --from-literal=webhook-token="${TECHMIND_ALERT_WEBHOOK_TOKEN}" \
+  --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -f "${SCRIPT_DIR}/prometheus-config.yaml"
 kubectl apply -f "${SCRIPT_DIR}/alertmanager-config.yaml"
 kubectl apply -f "${SCRIPT_DIR}/prometheus.yaml"
@@ -201,7 +219,9 @@ cd "${PROJECT_DIR}"
 
 helm upgrade --install techmind ./deploy/helm/techmind \
   --namespace ${NAMESPACE} \
-  -f "${SCRIPT_DIR}/values-kind.yaml"
+  -f "${SCRIPT_DIR}/values-kind.yaml" \
+  --set-string secrets.jwtSecret="${TECHMIND_JWT_SECRET}" \
+  --set-string secrets.alertWebhookToken="${TECHMIND_ALERT_WEBHOOK_TOKEN}"
 
 # ============================================
 # 8. 等待就绪

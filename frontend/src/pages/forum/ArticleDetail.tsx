@@ -37,21 +37,23 @@ export default function ArticleDetail() {
     action()
   }
 
-  async function handleLike() {
-    requireLogin(async () => {
-      await articleApi.like(id!)
-      setLiked(true)
-      setArticle((a: any) => ({ ...a, like_count: a.like_count + 1 }))
-    })
-  }
+	async function handleLike() {
+		requireLogin(async () => {
+			const res = await articleApi.like(id!)
+			const nextLiked = Boolean(res.data.data?.liked)
+			setLiked(nextLiked)
+			setArticle((a: any) => ({ ...a, like_count: Math.max(0, a.like_count + (nextLiked ? 1 : -1)) }))
+		})
+	}
 
   async function handleFavorite() {
     requireLogin(async () => {
-      await articleApi.favorite(id!)
-      setFavorited(true)
-      setArticle((a: any) => ({ ...a, favorite_count: a.favorite_count + 1 }))
-    })
-  }
+			const res = await articleApi.favorite(id!)
+			const nextFavorited = Boolean(res.data.data?.favorited)
+			setFavorited(nextFavorited)
+			setArticle((a: any) => ({ ...a, favorite_count: Math.max(0, a.favorite_count + (nextFavorited ? 1 : -1)) }))
+		})
+	}
 
   async function handleComment() {
     requireLogin(async () => {

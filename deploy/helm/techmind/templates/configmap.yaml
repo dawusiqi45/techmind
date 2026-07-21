@@ -11,6 +11,7 @@ data:
       mode: prod
     server:
       addr: ":8080"
+      trustedProxies: {{ .Values.server.trustedProxies | toJson }}
     log:
       level: info
       filename: logs/techmind.log
@@ -18,36 +19,32 @@ data:
       maxAge: 30
       maxBackups: 10
     mysql:
-      {{- if .Values.mysql.enabled }}
-      dsn: "{{ .Values.mysql.user }}:{{ .Values.mysql.password }}@tcp({{ .Values.mysql.host }}:{{ .Values.mysql.port }})/{{ .Values.mysql.database }}?parseTime=true&charset=utf8mb4&loc=Local"
-      {{- else if .Values.externalMySQL.enabled }}
-      dsn: "{{ .Values.externalMySQL.user }}:{{ .Values.externalMySQL.password }}@tcp({{ .Values.externalMySQL.host }}:{{ .Values.externalMySQL.port }})/{{ .Values.externalMySQL.database }}?parseTime=true&charset=utf8mb4&loc=Local"
-      {{- end }}
+      dsn: ""
       maxOpen: 20
       maxIdle: 10
       maxLifetime: 300
     redis:
-      {{- if .Values.redis.enabled }}
+{{ if .Values.redis.enabled }}
       addr: "{{ .Values.redis.host }}:{{ .Values.redis.port }}"
-      password: "{{ .Values.redis.password }}"
+      password: ""
       db: {{ .Values.redis.db }}
-      {{- else if .Values.externalRedis.enabled }}
-      addr: "{{ .Values.externalRedis.host }}:{{ .Values.externalRedis.port }}"
-      password: "{{ .Values.externalRedis.password }}"
+{{ else if .Values.externalRedis.enabled }}
+      addr: "{{ required "externalRedis.host is required" .Values.externalRedis.host }}:{{ .Values.externalRedis.port }}"
+      password: ""
       db: {{ .Values.externalRedis.db }}
-      {{- end }}
+{{ end }}
     milvus:
-      {{- if .Values.milvus.enabled }}
+{{ if .Values.milvus.enabled }}
       addr: "{{ .Values.milvus.host }}:{{ .Values.milvus.port }}"
-      {{- else if .Values.externalMilvus.enabled }}
+{{ else if .Values.externalMilvus.enabled }}
       addr: "{{ .Values.externalMilvus.host }}:{{ .Values.externalMilvus.port }}"
-      {{- else }}
+{{ else }}
       addr: ""
-      {{- end }}
+{{ end }}
       collectionName: "techmind_articles"
       dim: 1536
     jwt:
-      secret: "change-me-in-production"
+      secret: ""
       accessExpireMin: 60
       refreshExpireH: 168
     ai:

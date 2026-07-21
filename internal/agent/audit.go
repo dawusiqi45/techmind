@@ -9,6 +9,8 @@ import (
 	"techmind/internal/agent/mcp"
 	mysqlDAO "techmind/internal/dao/mysql"
 	"techmind/internal/model"
+
+	"go.uber.org/zap"
 )
 
 const maxAuditTextLength = 4096
@@ -27,13 +29,15 @@ func (r *toolRecorder) execute(ctx context.Context, name, reason string, fn func
 	start := time.Now()
 	output := fn()
 	input := model.JSONMap{"reason": sanitizeAuditString(reason)}
-	_ = mysqlDAO.CreateOpsToolCall(ctx, &model.OpsToolCall{
+	if err := mysqlDAO.CreateOpsToolCall(ctx, &model.OpsToolCall{
 		ReportID:   r.reportID,
 		ToolName:   name,
 		Input:      input,
 		Output:     sanitizeAuditEvidence(output),
 		DurationMs: int(time.Since(start).Milliseconds()),
-	})
+	}); err != nil {
+		zap.L().Warn("persist ops tool call failed", zap.Int64("report_id", r.reportID), zap.String("tool", name), zap.Error(err))
+	}
 	return output
 }
 

@@ -4,6 +4,7 @@ app:
 
 server:
   addr: ":8080"
+  trustedProxies: ["127.0.0.1", "::1"]
 
 log:
   level: debug
@@ -24,7 +25,7 @@ redis:
   db: 0
 
 jwt:
-  secret: "change-me-in-production"
+  secret: "" # local 模式为空时自动生成临时密钥；其他环境必须通过 TECHMIND_JWT_SECRET 注入
   accessExpireMin: 60
   refreshExpireH: 168
 

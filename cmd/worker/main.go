@@ -96,7 +96,7 @@ func run(configPath string) error {
 
 	// 创建 Ops Worker（诊断任务）
 	opsWorker := worker.NewOpsWorker("ops-worker-" + consumerSuffix)
-	metricsServer := &http.Server{Addr: ":9091", Handler: promhttp.Handler()}
+	metricsServer := &http.Server{Addr: ":9091", Handler: promhttp.Handler(), ReadHeaderTimeout: 5 * time.Second}
 	go func() {
 		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			zap.L().Warn("worker metrics server stopped", zap.Error(err))

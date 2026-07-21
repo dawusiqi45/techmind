@@ -23,7 +23,7 @@ export default function OpsDiagnose() {
   return (
     <Card title="SRE Agent 手动诊断" style={{ maxWidth: 600, background: '#161b22', border: '1px solid #30363d' }} headStyle={{ color: '#e6edf3', borderBottom: '1px solid #30363d' }}>
       <div style={{ marginBottom: 24, color: '#8b949e', lineHeight: 1.7 }}>
-        <p>Agent 会只读采集慢请求、错误事件、Redis Stream、Prometheus 趋势、Pod/Event、Deployment、Helm 历史、近期变更和 Runbook；每次查询都会写入报告的证据链，它不会修改集群或业务数据。</p>
+        <p>Agent 会只读采集慢请求、错误事件、Redis Stream、Prometheus 趋势、Pod/Event/Deployment、受限 Pod 日志、近期变更和 Runbook；每次查询都会写入报告的证据链，它不会修改集群或业务数据。</p>
         <ol style={{ margin: '10px 0 0', paddingLeft: 20 }}>
           <li>填写当前异常对应的告警名称或服务名。</li>
           <li>点击“触发诊断”，任务将交给 Worker 异步处理。</li>

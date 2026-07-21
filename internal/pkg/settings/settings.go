@@ -1,6 +1,8 @@
 package settings
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -32,7 +34,8 @@ type AppSetting struct {
 }
 
 type ServerSetting struct {
-	Addr string `mapstructure:"addr"`
+	Addr           string   `mapstructure:"addr"`
+	TrustedProxies []string `mapstructure:"trustedProxies"`
 }
 
 type LogSetting struct {
@@ -120,6 +123,7 @@ func Init(configPath string) error {
 	envBindings := map[string]string{
 		"app.mode":               "TECHMIND_APP_MODE",
 		"server.addr":            "TECHMIND_SERVER_ADDR",
+		"server.trustedProxies":  "TECHMIND_SERVER_TRUSTED_PROXIES",
 		"log.level":              "TECHMIND_LOG_LEVEL",
 		"mysql.dsn":              "TECHMIND_MYSQL_DSN",
 		"redis.addr":             "TECHMIND_REDIS_ADDR",
@@ -153,6 +157,7 @@ func Init(configPath string) error {
 	// 支持环境变量的运行时字段，确保 Docker/Helm 注入一定生效。
 	Conf.App.Mode = v.GetString("app.mode")
 	Conf.Server.Addr = v.GetString("server.addr")
+	Conf.Server.TrustedProxies = v.GetStringSlice("server.trustedProxies")
 	Conf.Log.Level = v.GetString("log.level")
 	Conf.MySQL.DSN = v.GetString("mysql.dsn")
 	Conf.Redis.Addr = v.GetString("redis.addr")
@@ -169,5 +174,16 @@ func Init(configPath string) error {
 	Conf.Ops.AutoDiagnose = v.GetBool("ops.autoDiagnose")
 	Conf.Ops.DiagnoseTimeoutSec = v.GetInt("ops.diagnoseTimeoutSec")
 	Conf.Ops.EvidenceWindowMin = v.GetInt("ops.evidenceWindowMin")
+	weakJWTSecret := len(Conf.JWT.Secret) < 32 || Conf.JWT.Secret == "change-me-in-production"
+	if Conf.App.Mode != "local" && weakJWTSecret {
+		return fmt.Errorf("settings: jwt secret must be at least 32 characters and not use the default outside local mode")
+	}
+	if Conf.App.Mode == "local" && weakJWTSecret {
+		secret := make([]byte, 32)
+		if _, err := rand.Read(secret); err != nil {
+			return fmt.Errorf("settings: generate local jwt secret: %w", err)
+		}
+		Conf.JWT.Secret = hex.EncodeToString(secret)
+	}
 	return nil
 }

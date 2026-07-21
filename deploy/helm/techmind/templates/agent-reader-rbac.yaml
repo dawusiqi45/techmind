@@ -1,3 +1,4 @@
+{{- if .Values.worker.enabled }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -13,7 +14,7 @@ metadata:
     {{- include "techmind.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
-    resources: ["pods", "pods/log", "events", "secrets"]
+    resources: ["pods", "pods/log", "events"]
     verbs: ["get", "list"]
   - apiGroups: ["apps"]
     resources: ["deployments", "replicasets"]
@@ -32,3 +33,4 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: {{ include "techmind.fullname" . }}-agent-reader
+{{- end }}

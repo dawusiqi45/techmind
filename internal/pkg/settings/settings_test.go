@@ -46,3 +46,15 @@ func TestInitReadsStandardSecretEnvironmentNames(t *testing.T) {
 		t.Fatalf("ops settings were not read from standard env names: %#v", Conf.Ops)
 	}
 }
+
+func TestInitRejectsDefaultJWTSecretOutsideLocalMode(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	config := "app:\n  mode: prod\njwt:\n  secret: change-me-in-production\n"
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	Conf = new(AppConfig)
+	if err := Init(configPath); err == nil {
+		t.Fatal("production config accepted the default JWT secret")
+	}
+}

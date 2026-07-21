@@ -19,10 +19,16 @@ let queue: Array<{
 }> = []
 
 apiClient.interceptors.response.use(
-  (res) => res,
+	(res) => {
+		if (typeof res.data?.code === 'number' && res.data.code !== 1000) {
+			return Promise.reject({ response: res, message: res.data.msg })
+		}
+		return res
+	},
   async (err) => {
     const original = err.config
-    if (err.response?.status !== 401 || original._retry) {
+    const isAuthRequest = typeof original?.url === 'string' && original.url.includes('/auth/')
+    if (err.response?.status !== 401 || original?._retry || isAuthRequest) {
       return Promise.reject(err)
     }
     if (refreshing) {

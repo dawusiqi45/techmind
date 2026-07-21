@@ -1,3 +1,4 @@
+{{- if .Values.server.enabled }}
 {{/* Server Deployment */}}
 apiVersion: apps/v1
 kind: Deployment
@@ -13,13 +14,25 @@ spec:
       {{- include "techmind.server.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
       labels:
         {{- include "techmind.server.selectorLabels" . | nindent 8 }}
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: server
           image: "{{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}"
           imagePullPolicy: {{ .Values.server.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           command: ["/app/techmind-server"]
           args: ["-config", "/app/config/config.yaml"]
           ports:
@@ -38,6 +51,16 @@ spec:
                 secretKeyRef:
                   name: {{ include "techmind.fullname" . }}-secret
                   key: jwt-secret
+            - name: TECHMIND_MYSQL_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "techmind.fullname" . }}-secret
+                  key: mysql-dsn
+            - name: TECHMIND_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "techmind.fullname" . }}-secret
+                  key: redis-password
             - name: TECHMIND_AI_LLM_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -65,7 +88,9 @@ spec:
         - name: config
           configMap:
             name: {{ include "techmind.fullname" . }}-config
+{{- end }}
 ---
+{{- if .Values.worker.enabled }}
 {{/* Worker Deployment */}}
 apiVersion: apps/v1
 kind: Deployment
@@ -81,14 +106,25 @@ spec:
       {{- include "techmind.worker.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
       labels:
         {{- include "techmind.worker.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "techmind.fullname" . }}-agent-reader
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: worker
           image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag }}"
           imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           command: ["/app/techmind-worker"]
           args: ["-config", "/app/config/config.yaml"]
           ports:
@@ -97,12 +133,34 @@ spec:
               protocol: TCP
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
           env:
             - name: TECHMIND_JWT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ include "techmind.fullname" . }}-secret
                   key: jwt-secret
+            - name: TECHMIND_MYSQL_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "techmind.fullname" . }}-secret
+                  key: mysql-dsn
+            - name: TECHMIND_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "techmind.fullname" . }}-secret
+                  key: redis-password
             - name: TECHMIND_AI_LLM_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -130,3 +188,4 @@ spec:
         - name: config
           configMap:
             name: {{ include "techmind.fullname" . }}-config
+{{- end }}

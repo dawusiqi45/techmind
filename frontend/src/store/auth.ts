@@ -41,19 +41,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ initialized: true, user: null })
       return
     }
-    if (get().user) {
-      set({ initialized: true })
-      return
-    }
-    try {
+		try {
       const res = await authApi.getProfile()
       const user = res.data.data as User
       saveUser(user)
       set({ user, initialized: true })
-    } catch {
-      tokenUtil.clear()
-      saveUser(null)
-      set({ user: null, initialized: true })
+    } catch (error: unknown) {
+      const status = (error as { response?: { status?: number } })?.response?.status
+      if (status === 401 || status === 403) {
+        tokenUtil.clear()
+        saveUser(null)
+        set({ user: null, initialized: true })
+        return
+      }
+      set({ initialized: true })
     }
   },
   login: (accessToken, refreshToken, user) => {

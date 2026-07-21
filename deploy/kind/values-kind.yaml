@@ -3,16 +3,17 @@
 
 server:
   replicaCount: 1
+  trustedProxies: ["10.244.0.0/16"]
   image:
     repository: techmind-server
     tag: latest
     pullPolicy: Never
 
 secrets:
-  jwtSecret: "change-me-in-production"
+  jwtSecret: ""
   llmApiKey: ""
   embeddingApiKey: ""
-  alertWebhookToken: "techmind-kind-alert-webhook"
+  alertWebhookToken: ""
 
 ops:
   autoDiagnose: true

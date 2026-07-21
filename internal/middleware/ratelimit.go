@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	myredis "techmind/internal/dao/redis"
@@ -10,8 +10,19 @@ import (
 	"techmind/internal/pkg/settings"
 
 	"github.com/gin-gonic/gin"
-	goredis "github.com/redis/go-redis/v9"
 )
+
+var rateLimitScript = `
+redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[1])
+local count = redis.call('ZCARD', KEYS[1])
+if count >= tonumber(ARGV[3]) then
+  redis.call('EXPIRE', KEYS[1], 120)
+  return 0
+end
+redis.call('ZADD', KEYS[1], ARGV[2], ARGV[4])
+redis.call('EXPIRE', KEYS[1], 120)
+return 1
+`
 
 func RateLimit(cfg *settings.RateLimitSetting) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -20,27 +31,18 @@ func RateLimit(cfg *settings.RateLimitSetting) gin.HandlerFunc {
 			return
 		}
 
-		ctx := context.Background()
+		ctx := c.Request.Context()
 		key := rateLimitKey(c)
 		now := time.Now()
 		windowStart := now.Add(-time.Minute).UnixMilli()
-
-		pipe := myredis.RDB.Pipeline()
-		pipe.ZRemRangeByScore(ctx, key, "0", fmt.Sprintf("%d", windowStart))
-		countCmd := pipe.ZCard(ctx, key)
-		pipe.ZAdd(ctx, key, goredis.Z{
-			Score:  float64(now.UnixMilli()),
-			Member: fmt.Sprintf("%d", now.UnixNano()),
-		})
-		pipe.Expire(ctx, key, 2*time.Minute)
-		_, err := pipe.Exec(ctx)
-
+		allowed, err := myredis.RDB.Eval(ctx, rateLimitScript, []string{key},
+			strconv.FormatInt(windowStart, 10), strconv.FormatInt(now.UnixMilli(), 10),
+			strconv.Itoa(cfg.RequestsPerMin), strconv.FormatInt(now.UnixNano(), 10)).Int()
 		if err != nil {
 			c.Next()
 			return
 		}
-
-		if countCmd.Val() >= int64(cfg.RequestsPerMin) {
+		if allowed != 1 {
 			response.AbortWithRateLimited(c)
 			return
 		}

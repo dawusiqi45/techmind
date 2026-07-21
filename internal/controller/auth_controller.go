@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -21,7 +22,7 @@ import (
 type RegisterReq struct {
 	Username string `json:"username" binding:"required,min=3,max=32"`
 	Password string `json:"password" binding:"required,min=6,max=72"`
-	Email    string `json:"email"    binding:"omitempty,email"`
+	Email    string `json:"email"    binding:"required,email"`
 }
 
 // LoginReq 登录请求体
@@ -72,11 +73,7 @@ func Login(c *gin.Context) {
 		Password: req.Password,
 	})
 	if err != nil {
-		if errors.Is(err, logic.ErrUserNotExist) {
-			response.Fail(c, response.CodeUserNotExist)
-			return
-		}
-		if errors.Is(err, logic.ErrWrongPassword) {
+		if errors.Is(err, logic.ErrUserNotExist) || errors.Is(err, logic.ErrWrongPassword) || errors.Is(err, logic.ErrUserDisabled) {
 			response.Fail(c, response.CodeWrongPassword)
 			return
 		}
@@ -160,6 +157,7 @@ func UploadAvatar(c *gin.Context) {
 		return
 	}
 
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 3*1024*1024)
 	file, header, err := c.Request.FormFile("avatar")
 	if err != nil {
 		response.FailWithMsg(c, response.CodeInvalidParam, "请选择头像文件")
@@ -178,6 +176,19 @@ func UploadAvatar(c *gin.Context) {
 		return
 	}
 
+	headerBytes := make([]byte, 512)
+	n, err := io.ReadFull(file, headerBytes)
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
+		response.FailWithMsg(c, response.CodeInvalidParam, "无法读取头像文件")
+		return
+	}
+	headerBytes = headerBytes[:n]
+	contentType := http.DetectContentType(headerBytes)
+	if contentType != "image/jpeg" && contentType != "image/png" && contentType != "image/webp" {
+		response.FailWithMsg(c, response.CodeInvalidParam, "头像内容不是有效的 jpg/png/webp 图片")
+		return
+	}
+
 	filename := fmt.Sprintf("%d%s", snowflake.GenID(), ext)
 	savePath := filepath.Join("uploads", "avatars", filename)
 
@@ -193,13 +204,20 @@ func UploadAvatar(c *gin.Context) {
 	}
 	defer dst.Close()
 
+	if _, err := dst.Write(headerBytes); err != nil {
+		_ = os.Remove(savePath)
+		response.Fail(c, response.CodeServerError)
+		return
+	}
 	if _, err := io.Copy(dst, file); err != nil {
+		_ = os.Remove(savePath)
 		response.Fail(c, response.CodeServerError)
 		return
 	}
 
 	avatarURL := "/uploads/avatars/" + filename
 	if err := logic.UpdateAvatar(uid, avatarURL); err != nil {
+		_ = os.Remove(savePath)
 		response.Fail(c, response.CodeServerError)
 		return
 	}
@@ -218,6 +236,22 @@ func ListUserFavorites(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
 	list, total, err := logic.ListUserFavorites(uid, page, pageSize)
+	if err != nil {
+		response.Fail(c, response.CodeServerError)
+		return
+	}
+	response.OK(c, gin.H{"list": list, "total": total})
+}
+
+func ListUserArticles(c *gin.Context) {
+	uid, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		response.Fail(c, response.CodeUnauthorized)
+		return
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	list, total, err := logic.ListUserArticles(uid, page, pageSize)
 	if err != nil {
 		response.Fail(c, response.CodeServerError)
 		return

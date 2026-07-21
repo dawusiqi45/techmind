@@ -78,7 +78,17 @@ func GetArticle(c *gin.Context) {
 func ListArticles(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	tagID, _ := strconv.ParseInt(c.Query("tag_id"), 10, 64)
 
+	if tagID > 0 {
+		list, total, err := logic.ListArticlesByTag(tagID, page, pageSize)
+		if err != nil {
+			response.Fail(c, response.CodeServerError)
+			return
+		}
+		response.OK(c, gin.H{"list": list, "total": total})
+		return
+	}
 	list, total, err := logic.ListArticles(page, pageSize)
 	if err != nil {
 		response.Fail(c, response.CodeServerError)
@@ -215,12 +225,18 @@ func FavoriteArticle(c *gin.Context) {
 // SearchArticles GET /api/v1/search
 func SearchArticles(c *gin.Context) {
 	keyword := c.Query("q")
-	if keyword == "" {
+	if keyword == "" || len([]rune(keyword)) > 100 {
 		response.FailWithMsg(c, response.CodeInvalidParam, "q is required")
 		return
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 50 {
+		pageSize = 20
+	}
 
 	result, err := logic.SearchArticles(c.Request.Context(), keyword, page, pageSize)
 	if err != nil {

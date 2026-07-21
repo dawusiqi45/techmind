@@ -63,6 +63,24 @@ func ListArticles(page, pageSize int) ([]*model.ArticleListItem, int, error) {
 	return list, int(total), err
 }
 
+// ListArticlesByAuthor 分页查询指定作者已发布文章。
+func ListArticlesByAuthor(authorID int64, page, pageSize int) ([]*model.ArticleListItem, int, error) {
+	offset := (page - 1) * pageSize
+	var total int64
+	if err := DB.Model(&model.Article{}).Where("author_id = ? AND status = 1", authorID).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var list []*model.ArticleListItem
+	err := DB.Raw(`
+		SELECT `+articleListSelect+`
+		FROM article a
+		JOIN user u ON u.id = a.author_id
+		WHERE a.author_id = ? AND a.status = 1
+		ORDER BY a.created_at DESC
+		LIMIT ? OFFSET ?`, authorID, pageSize, offset).Scan(&list).Error
+	return list, int(total), err
+}
+
 // ListArticlesByTag 按标签分页查询
 func ListArticlesByTag(tagID int64, page, pageSize int) ([]*model.ArticleListItem, int, error) {
 	offset := (page - 1) * pageSize

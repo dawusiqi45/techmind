@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Tabs, Input, Spin, message, Upload } from 'antd'
 import { MailOutlined, CalendarOutlined, CameraOutlined, SaveOutlined } from '@ant-design/icons'
 import { authApi } from '@/api/auth'
-import { articleApi } from '@/api/article'
 import { useAuthStore } from '@/store/auth'
 import { useLoginModal } from '@/store/loginModal'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -41,11 +40,8 @@ export default function UserProfile() {
 
   useEffect(() => {
     if (!user) return
-    if (activeTab === 'articles') {
-      articleApi.list({ page: 1, page_size: 50 }).then(r => {
-        const list = r.data.data?.list || []
-        setArticles(list.filter((a: any) => a.author_name === user.username))
-      })
+		if (activeTab === 'articles') {
+			authApi.getArticles({ page: 1, page_size: 50 }).then(r => setArticles(r.data.data?.list || []))
     } else if (activeTab === 'favorites') {
       authApi.getFavorites({ page: 1, page_size: 50 }).then(r => {
         setFavorites(r.data.data?.list || [])

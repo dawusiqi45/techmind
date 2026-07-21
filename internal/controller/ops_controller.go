@@ -15,7 +15,7 @@ import (
 // 手动触发 SRE 诊断（写入 ops_tasks Stream，由 OpsWorker 异步消费）
 func ManualDiagnose(c *gin.Context) {
 	var req struct {
-		Service   string `json:"service"`
+		Service   string `json:"service" binding:"required"`
 		AlertName string `json:"alert_name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {

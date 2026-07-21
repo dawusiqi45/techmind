@@ -20,11 +20,14 @@ func Setup(mode string) *gin.Engine {
 	}
 
 	r := gin.New()
+	if err := r.SetTrustedProxies(settings.Conf.Server.TrustedProxies); err != nil {
+		panic("invalid trusted proxy configuration: " + err.Error())
+	}
 	r.Use(middleware.CORS())
+	r.Use(middleware.BodyLimit(4 << 20))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Logger())
 	r.Use(middleware.Metrics())
-	r.Use(middleware.RateLimit(&settings.Conf.RateLimit))
 	r.Use(middleware.SlowRequest(800 * time.Millisecond))
 	r.Use(middleware.Recovery())
 
@@ -40,6 +43,7 @@ func Setup(mode string) *gin.Engine {
 
 	// Auth（无需鉴权）
 	auth := v1.Group("/auth")
+	auth.Use(middleware.RateLimit(&settings.Conf.RateLimit))
 	{
 		auth.POST("/register", controller.Register)
 		auth.POST("/login", controller.Login)
@@ -48,12 +52,15 @@ func Setup(mode string) *gin.Engine {
 
 	// 需要鉴权的路由
 	authed := v1.Group("")
+	authed.Use(middleware.RateLimit(&settings.Conf.RateLimit))
 	authed.Use(middleware.JWT())
+	authed.Use(middleware.RateLimit(&settings.Conf.RateLimit))
 	{
 		// 用户
 		authed.GET("/user/profile", controller.GetProfile)
 		authed.GET("/user/favorites", controller.ListUserFavorites)
 		authed.GET("/user/likes", controller.ListUserLikes)
+		authed.GET("/user/articles", controller.ListUserArticles)
 		authed.PUT("/user/profile", controller.UpdateProfile)
 		authed.POST("/user/avatar", controller.UploadAvatar)
 
@@ -68,6 +75,7 @@ func Setup(mode string) *gin.Engine {
 
 	// 公开路由（无需鉴权）
 	public := v1.Group("")
+	public.Use(middleware.RateLimit(&settings.Conf.RateLimit))
 	{
 		public.GET("/articles", controller.ListArticles)
 		public.GET("/articles/hot", controller.GetHotArticles)
@@ -79,13 +87,16 @@ func Setup(mode string) *gin.Engine {
 
 	// Alertmanager 无法携带用户 JWT，使用独立的 Bearer Webhook 令牌鉴权。
 	webhook := v1.Group("/alerts")
+	webhook.Use(middleware.RateLimit(&settings.Conf.RateLimit))
 	{
 		webhook.POST("/webhook", controller.AlertWebhook)
 	}
 
 	// 管理后台路由（需 JWT 和服务端管理员角色校验）
 	admin := v1.Group("/admin")
+	admin.Use(middleware.RateLimit(&settings.Conf.RateLimit))
 	admin.Use(middleware.JWT())
+	admin.Use(middleware.RateLimit(&settings.Conf.RateLimit))
 	admin.Use(middleware.RequireAdmin())
 	{
 		// 监控后台

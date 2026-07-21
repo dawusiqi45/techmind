@@ -26,8 +26,8 @@ type Claims struct {
 }
 
 var (
-	ErrTokenExpired   = errors.New("token expired")
-	ErrTokenInvalid   = errors.New("token invalid")
+	ErrTokenExpired = errors.New("token expired")
+	ErrTokenInvalid = errors.New("token invalid")
 )
 
 var cfg *settings.JWTSetting
@@ -47,15 +47,24 @@ func GenRefreshToken(userID int64) (string, error) {
 	return genToken(userID, tokenTypeRefresh, time.Duration(cfg.RefreshExpireH)*time.Hour)
 }
 
-// ParseToken 解析并验证 token，返回 Claims
-func ParseToken(tokenStr string) (*Claims, error) {
+// ParseAccessToken 解析并验证 access token。
+func ParseAccessToken(tokenStr string) (*Claims, error) {
+	return parseToken(tokenStr, tokenTypeAccess)
+}
+
+// ParseRefreshToken 解析并验证 refresh token。
+func ParseRefreshToken(tokenStr string) (*Claims, error) {
+	return parseToken(tokenStr, tokenTypeRefresh)
+}
+
+func parseToken(tokenStr string, expectedType tokenType) (*Claims, error) {
 	claims := &Claims{}
 	token, err := gojwt.ParseWithClaims(tokenStr, claims, func(t *gojwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*gojwt.SigningMethodHMAC); !ok {
+		if t.Method != gojwt.SigningMethodHS256 {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return []byte(cfg.Secret), nil
-	})
+	}, gojwt.WithValidMethods([]string{gojwt.SigningMethodHS256.Alg()}), gojwt.WithIssuer("techmind"))
 
 	if err != nil {
 		if errors.Is(err, gojwt.ErrTokenExpired) {
@@ -63,7 +72,7 @@ func ParseToken(tokenStr string) (*Claims, error) {
 		}
 		return nil, ErrTokenInvalid
 	}
-	if !token.Valid {
+	if !token.Valid || claims.UserID <= 0 || claims.TokenType != expectedType {
 		return nil, ErrTokenInvalid
 	}
 	return claims, nil

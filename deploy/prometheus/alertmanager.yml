@@ -16,7 +16,7 @@ receivers:
         http_config:
           authorization:
             type: Bearer
-            credentials: 'techmind-compose-alert-webhook'
+            credentials_file: '/etc/alertmanager/secrets/webhook-token'
 
 inhibit_rules:
   - source_match:

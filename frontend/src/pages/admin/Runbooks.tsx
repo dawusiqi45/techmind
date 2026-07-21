@@ -9,7 +9,7 @@ export default function Runbooks() {
   const [open, setOpen] = useState(false)
   const [form] = Form.useForm()
 
-  const load = () => runbookApi.list().then(r => setData(r.data.data || []))
+	const load = () => runbookApi.list().then(r => setData(r.data.data?.list || []))
   useEffect(() => { load() }, [])
 
   async function handleCreate(values: any) {

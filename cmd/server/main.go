@@ -95,8 +95,13 @@ func run(configPath string) error {
 
 	// 8. 启动 HTTP Server（优雅退出）
 	srv := &http.Server{
-		Addr:    cfg.Server.Addr,
-		Handler: engine,
+		Addr:              cfg.Server.Addr,
+		Handler:           engine,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
 	}
 
 	serverErr := make(chan error, 1)

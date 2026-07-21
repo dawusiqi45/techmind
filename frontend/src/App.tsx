@@ -30,6 +30,8 @@ import LoginModal from '@/components/forum/LoginModal'
 
 function AdminGuard({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user)
+  const initialized = useAuthStore((s) => s.initialized)
+  if (!initialized) return null
   if (!user) return <Navigate to="/login" replace />
   if (user.role !== 1) return <Navigate to="/403" replace />
   return <>{children}</>

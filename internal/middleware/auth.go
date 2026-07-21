@@ -23,12 +23,18 @@ func JWT() gin.HandlerFunc {
 			return
 		}
 
-		claims, err := jwt.ParseToken(tokenStr)
+		claims, err := jwt.ParseAccessToken(tokenStr)
 		if err != nil {
 			if errors.Is(err, jwt.ErrTokenExpired) {
 				response.AbortWithUnauthorized(c)
 				return
 			}
+			response.AbortWithUnauthorized(c)
+			return
+		}
+
+		user, err := mysqlDAO.GetUserByID(claims.UserID)
+		if err != nil || user == nil || user.Status != 1 {
 			response.AbortWithUnauthorized(c)
 			return
 		}

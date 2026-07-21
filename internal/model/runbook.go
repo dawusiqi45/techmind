@@ -7,9 +7,9 @@ type Runbook struct {
 	ID          int64     `gorm:"primaryKey"       json:"id,string"`
 	Title       string    `gorm:"not null"         json:"title"`
 	Content     string    `gorm:"type:mediumtext"  json:"content"`
-	AlertName   string    `gorm:"default:''"`      // 关联的告警名称，可为空
-	Service     string    `gorm:"default:''"`
-	IndexStatus int8      `gorm:"default:0"` // 0=未索引 1=已索引
+	AlertName   string    `gorm:"default:''" json:"alert_name"` // 关联的告警名称，可为空
+	Service     string    `gorm:"default:''" json:"service"`
+	IndexStatus int8      `gorm:"default:0"   json:"index_status"` // 0=未索引 1=已索引
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

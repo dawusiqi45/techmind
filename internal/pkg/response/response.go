@@ -24,7 +24,7 @@ func OK(c *gin.Context, data interface{}) {
 
 // Fail 返回业务失败响应，使用错误码默认消息
 func Fail(c *gin.Context, code Code) {
-	c.JSON(http.StatusOK, Response{
+	c.JSON(httpStatus(code), Response{
 		Code: code,
 		Msg:  code.Msg(),
 	})
@@ -32,10 +32,29 @@ func Fail(c *gin.Context, code Code) {
 
 // FailWithMsg 返回业务失败响应，允许覆盖消息（用于参数校验等场景）
 func FailWithMsg(c *gin.Context, code Code, msg string) {
-	c.JSON(http.StatusOK, Response{
+	c.JSON(httpStatus(code), Response{
 		Code: code,
 		Msg:  msg,
 	})
+}
+
+func httpStatus(code Code) int {
+	switch code {
+	case CodeInvalidParam:
+		return http.StatusBadRequest
+	case CodeUnauthorized, CodeWrongPassword:
+		return http.StatusUnauthorized
+	case CodeForbidden:
+		return http.StatusForbidden
+	case CodeNotFound, CodeUserNotExist, CodeArticleNotExist:
+		return http.StatusNotFound
+	case CodeUserExist:
+		return http.StatusConflict
+	case CodeRateLimited:
+		return http.StatusTooManyRequests
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 // AbortWithUnauthorized 中间件中止并返回 401

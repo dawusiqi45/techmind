@@ -22,8 +22,11 @@ var (
 	kubeInitErr error
 )
 
-// KubernetesSnapshot 只读取指定服务的 Pod、Warning Event、Deployment 和 Helm release Secret。
+// KubernetesSnapshot 只读取指定服务的 Pod、Warning Event 和 Deployment。
 func KubernetesSnapshot(ctx context.Context, namespace, service string) Evidence {
+	if strings.TrimSpace(service) == "" {
+		return Evidence{"kubernetes_status": "skipped", "kubernetes_error": "service is required"}
+	}
 	client, err := getKubernetesClient()
 	if err != nil {
 		return Evidence{"kubernetes_status": "unavailable", "kubernetes_error": err.Error()}
@@ -76,25 +79,14 @@ func KubernetesSnapshot(ctx context.Context, namespace, service string) Evidence
 		}
 	}
 
-	releases, err := client.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{LabelSelector: "owner=helm"})
-	if err == nil {
-		history := make([]string, 0, 5)
-		for _, secret := range releases.Items {
-			if secret.Labels["name"] != "techmind" {
-				continue
-			}
-			history = append(history, fmt.Sprintf("release=%s version=%s status=%s", secret.Labels["name"], secret.Labels["version"], secret.Labels["status"]))
-			if len(history) == 5 {
-				break
-			}
-		}
-		evidence["helm_release_history"] = history
-	}
 	return evidence
 }
 
 // KubernetesLogSnapshot 读取单个匹配 Pod 最近十分钟的末尾日志，严格限制行数与字节数。
 func KubernetesLogSnapshot(ctx context.Context, namespace, service string) Evidence {
+	if strings.TrimSpace(service) == "" {
+		return Evidence{"k8s_logs_error": "service is required"}
+	}
 	client, err := getKubernetesClient()
 	if err != nil {
 		return Evidence{"k8s_logs_error": err.Error()}
@@ -106,23 +98,37 @@ func KubernetesLogSnapshot(ctx context.Context, namespace, service string) Evide
 	if err != nil {
 		return Evidence{"k8s_logs_error": err.Error()}
 	}
+	logs := make([]string, 0, 3)
 	for _, pod := range pods.Items {
-		if !matchesService(pod.Name, pod.Labels, service) || len(pod.Spec.Containers) == 0 {
+		if !matchesService(pod.Name, pod.Labels, service) {
 			continue
 		}
-		tail, since := int64(50), int64(600)
-		stream, err := client.CoreV1().Pods(namespace).GetLogs(pod.Name, &corev1.PodLogOptions{Container: pod.Spec.Containers[0].Name, TailLines: &tail, SinceSeconds: &since}).Stream(ctx)
-		if err != nil {
-			return Evidence{"k8s_logs_error": err.Error()}
+		for _, container := range pod.Spec.Containers {
+			if len(logs) >= 3 {
+				break
+			}
+			tail, since := int64(50), int64(600)
+			stream, err := client.CoreV1().Pods(namespace).GetLogs(pod.Name, &corev1.PodLogOptions{Container: container.Name, TailLines: &tail, SinceSeconds: &since}).Stream(ctx)
+			if err != nil {
+				logs = append(logs, fmt.Sprintf("%s/%s: log error: %v", pod.Name, container.Name, err))
+				continue
+			}
+			body, readErr := io.ReadAll(io.LimitReader(stream, 8*1024))
+			_ = stream.Close()
+			if readErr != nil {
+				logs = append(logs, fmt.Sprintf("%s/%s: log error: %v", pod.Name, container.Name, readErr))
+				continue
+			}
+			logs = append(logs, fmt.Sprintf("%s/%s:\n%s", pod.Name, container.Name, redactLog(string(body))))
 		}
-		defer stream.Close()
-		body, err := io.ReadAll(io.LimitReader(stream, 16*1024))
-		if err != nil {
-			return Evidence{"k8s_logs_error": err.Error()}
+		if len(logs) >= 3 {
+			break
 		}
-		return Evidence{"k8s_log_pod": pod.Name, "k8s_log_tail": redactLog(string(body))}
 	}
-	return Evidence{"k8s_logs": "no matching pod"}
+	if len(logs) == 0 {
+		return Evidence{"k8s_logs": "no matching pod"}
+	}
+	return Evidence{"k8s_log_samples": logs}
 }
 
 func getKubernetesClient() (kubernetes.Interface, error) {
@@ -175,9 +181,18 @@ func redactLog(text string) string {
 	lines := strings.Split(text, "\n")
 	for i, line := range lines {
 		lower := strings.ToLower(line)
-		if strings.Contains(lower, "authorization") || strings.Contains(lower, "password") || strings.Contains(lower, "token=") {
+		if containsSensitiveLogKey(lower) {
 			lines[i] = "[redacted sensitive log line]"
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+func containsSensitiveLogKey(line string) bool {
+	for _, key := range []string{"authorization", "password", "passwd", "token", "api_key", "api-key", "apikey", "secret", "cookie", "set-cookie", "bearer ", "sk-"} {
+		if strings.Contains(line, key) {
+			return true
+		}
+	}
+	return false
 }

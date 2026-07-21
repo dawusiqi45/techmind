@@ -24,6 +24,9 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /etc/alertmanager
+            - name: webhook-secret
+              mountPath: /etc/alertmanager/secrets
+              readOnly: true
           args:
             - '--config.file=/etc/alertmanager/alertmanager.yml'
             - '--storage.path=/alertmanager'
@@ -31,6 +34,9 @@ spec:
         - name: config
           configMap:
             name: alertmanager-config
+        - name: webhook-secret
+          secret:
+            secretName: techmind-alertmanager-webhook
 ---
 apiVersion: v1
 kind: Service

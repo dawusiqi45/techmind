@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	ErrUserExist      = errors.New("username already exists")
-	ErrUserNotExist   = errors.New("user not found")
-	ErrWrongPassword  = errors.New("wrong password")
+	ErrUserExist     = errors.New("username already exists")
+	ErrUserNotExist  = errors.New("user not found")
+	ErrWrongPassword = errors.New("wrong password")
+	ErrUserDisabled  = errors.New("user disabled")
 )
 
 // RegisterInput 注册请求参数
@@ -72,6 +73,9 @@ func Login(in *LoginInput) (*TokenPair, error) {
 	if u == nil {
 		return nil, ErrUserNotExist
 	}
+	if u.Status != 1 {
+		return nil, ErrUserDisabled
+	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(in.Password)); err != nil {
 		return nil, ErrWrongPassword
@@ -94,9 +98,16 @@ func Login(in *LoginInput) (*TokenPair, error) {
 
 // RefreshToken 用 refresh token 换新 access token
 func RefreshToken(refreshTokenStr string) (string, error) {
-	claims, err := jwt.ParseToken(refreshTokenStr)
+	claims, err := jwt.ParseRefreshToken(refreshTokenStr)
 	if err != nil {
 		return "", err
+	}
+	user, err := mysqlDAO.GetUserByID(claims.UserID)
+	if err != nil {
+		return "", fmt.Errorf("refresh: query user: %w", err)
+	}
+	if user == nil || user.Status != 1 {
+		return "", ErrUserDisabled
 	}
 	return jwt.GenAccessToken(claims.UserID)
 }

@@ -4,11 +4,11 @@ TechMind 是一个基于 Go/Gin 的技术论坛与云原生智能可观测平台
 
 ## 当前已实现的核心能力
 
-- **论坛与用户**：文章、评论、标签、点赞、收藏、个人中心、热榜、JWT 鉴权与管理员后台。
+- **论坛与用户**：文章、评论、标签、点赞、收藏、个人中心、热榜、严格区分 access/refresh 的 JWT 鉴权与管理员后台。
 - **AI 内容能力**：文章摘要、AI 标签、搜索总结；Milvus 与 Embedding 可用时启用文章语义搜索和 Runbook 语义检索，不可用时保留关键词/数据库降级路径。
 - **可观测与告警**：Prometheus 指标、慢请求和错误事件归档、Redis Stream 队列观测、Alertmanager Webhook、告警去重与增强。
 - **SRE Agent**：firing 告警自动去重入队，也支持管理员手动触发；诊断按告警时间窗采集 Prometheus、慢请求、错误和部署变更，默认总时限 120 秒；基础取证后由 LLM 最多追加 5 轮只读查询；Worker 重试复用同一报告，生成 Incident、结构化报告和可审计证据链。
-- **部署**：Docker Compose、Helm、kind 部署；Worker 使用最小只读 RBAC 查询 Kubernetes。Milvus/MinIO/etcd 在当前 kind 配置中默认不部署。
+- **部署**：Docker Compose、Helm、kind 部署；Worker 使用最小只读 RBAC 查询 Kubernetes，不能读取 Secret；JWT、数据库连接和 Webhook Token 通过 Secret 注入。Milvus/MinIO/etcd 在当前 kind 配置中默认不部署。
 
 ## 技术栈
 
@@ -120,7 +120,13 @@ go run scripts/seed_data.go
 
 ```bash
 cd deploy/docker
-docker-compose up -d
+export TECHMIND_MYSQL_ROOT_PASSWORD="$(openssl rand -hex 24)"
+export TECHMIND_MYSQL_PASSWORD="$(openssl rand -hex 24)"
+export TECHMIND_JWT_SECRET="$(openssl rand -hex 32)"
+export TECHMIND_ALERT_WEBHOOK_TOKEN="$(openssl rand -hex 32)"
+printf '%s' "$TECHMIND_ALERT_WEBHOOK_TOKEN" > .alert-webhook-token
+export TECHMIND_ALERT_WEBHOOK_TOKEN_FILE="$(pwd)/.alert-webhook-token"
+docker compose up -d
 ```
 
 服务列表：
@@ -138,18 +144,23 @@ docker-compose up -d
 启动后写入演示数据：
 
 ```bash
-go run scripts/seed_data.go
+MYSQL_DSN="techmind:${TECHMIND_MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/techmind?parseTime=true&charset=utf8mb4&loc=Local" \
+  go run scripts/seed_data.go
 ```
 
 ### Kubernetes 部署（Helm）
 
 ```bash
 cd deploy/helm/techmind
+export TECHMIND_JWT_SECRET="$(openssl rand -hex 32)"
 helm install techmind . -n techmind --create-namespace \
+  --set externalMySQL.enabled=true \
   --set externalMySQL.host=your-mysql-host \
+  --set externalMySQL.user=your-user \
   --set externalMySQL.password=your-password \
+  --set externalRedis.enabled=true \
   --set externalRedis.host=your-redis-host \
-  --set externalMilvus.host=your-milvus-host
+  --set-string secrets.jwtSecret="$TECHMIND_JWT_SECRET"
 ```
 
 ### kind 本地完整部署验证
@@ -239,6 +250,7 @@ Prometheus: http://<虚拟机IP>:30909
 | GET | `/api/v1/admin/runbooks` | Runbook 列表 |
 | POST | `/api/v1/admin/deployment-changes` | 记录部署变更 |
 | GET | `/api/v1/admin/deployment-changes` | 部署变更列表 |
+| GET | `/api/v1/user/articles` | 当前用户文章列表 |
 
 ## 使用监控与 SRE Agent
 
@@ -252,20 +264,22 @@ SRE 行为可通过 `ops.autoDiagnose`、`ops.diagnoseTimeoutSec`、`ops.evidenc
 
 ### 配置 AI 与 Webhook 密钥
 
-仓库不保存真实 API Key。kind 更新或首次部署前，请在 Ubuntu 终端设置自己的值，并以 Helm Secret 注入：
+仓库不保存真实 API Key。非本地模式会拒绝少于 32 字符或默认的 JWT Secret。kind 脚本未提供变量时会在本次执行中生成随机 JWT/Webhook Token；常规 Helm 更新应显式设置：
 
 ```bash
 export TECHMIND_LLM_API_KEY='你的 DeepSeek/OpenAI 兼容 API Key'
+export TECHMIND_JWT_SECRET="$(openssl rand -hex 32)"
 export TECHMIND_ALERT_WEBHOOK_TOKEN='随机生成的长令牌'
 
 helm upgrade --install techmind ./deploy/helm/techmind \
   -n techmind \
   -f deploy/kind/values-kind.yaml \
+  --set-string secrets.jwtSecret="$TECHMIND_JWT_SECRET" \
   --set-string secrets.llmApiKey="$TECHMIND_LLM_API_KEY" \
   --set-string secrets.alertWebhookToken="$TECHMIND_ALERT_WEBHOOK_TOKEN"
 ```
 
-同时将 `deploy/kind/alertmanager-config.yaml` 中的 `credentials` 改为同一个 Webhook Token，再执行 `kubectl apply -f deploy/kind/alertmanager-config.yaml` 和 `kubectl rollout restart deployment/alertmanager -n techmind`。生产环境应改用外部 Secret/Vault，而非命令历史或 values 文件。
+Alertmanager 通过 `credentials_file` 读取 `techmind-alertmanager-webhook` Secret，不再把 Token 写入 ConfigMap。生产环境应改用外部 Secret/Vault，而非命令历史或 values 文件。
 
 完整的增量更新、迁移和验收步骤见 [docs/operations.md](docs/operations.md)。
 
